@@ -46,7 +46,12 @@ pico_enable_stdio_usb(fpv_sl 0)
 
 # Add the standard library to the build
 target_link_libraries(fpv_sl
-        pico_stdlib)
+        PRIVATE
+        pico_stdlib
+        pico_unique_id
+        tinyusb_device
+        tinyusb_board
+)
 
 # Add the standard include files to the build
 target_include_directories(fpv_sl PRIVATE
