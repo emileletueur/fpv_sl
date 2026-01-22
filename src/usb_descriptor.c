@@ -11,7 +11,7 @@
 #define USB_PID           (0x4000 | PID_MAP(CDC, 0) | PID_MAP(MSC, 1) | PID_MAP(HID, 2) | \
                            PID_MAP(MIDI, 3) | PID_MAP(VENDOR, 4) )
 
-#define USB_VID   0xCafe
+#define USB_VID   0x2E8A
 #define USB_BCD   0x0200
 
 //--------------------------------------------------------------------+
@@ -200,11 +200,11 @@ enum {
 // array of pointer to string descriptors
 static char const *string_desc_arr[] = {
     (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-    "TinyUSB",                     // 1: Manufacturer
-    "TinyUSB Device",              // 2: Product
-    NULL,                          // 3: Serials will use unique ID if possible
-    "TinyUSB CDC",                 // 4: CDC Interface
-    "TinyUSB MSC",                 // 5: MSC Interface
+    "SGLab",              // 1: Manufacturer
+    "FPVSoundLogger",     // 2: Product
+    NULL,                 // 3: Serials will use unique ID if possible
+    "USB Serial",         // 4: CDC Interface
+    "FPV-SL USB Flash",   // 5: MSC Interface
 };
 
 static uint16_t _desc_str[32 + 1];
