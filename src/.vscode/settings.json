@@ -1,4 +1,19 @@
 {
+    // ========== Formatage C/C++ ==========
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.clang_format_fallbackStyle": "LLVM",
+    // ========== Formatage automatique ==========
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    // ========== Ligne verticale à 120 caractères ==========
+    "editor.rulers": [
+        120
+    ],
+    // ========== Désactiver les autres formateurs ==========
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
     "cmake.showSystemKits": false,
     "cmake.options.statusBarVisibility": "hidden",
     "cmake.options.advanced": {

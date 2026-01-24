@@ -1,0 +1,15 @@
+add_library(sdio
+    sd_spi_hw_config.c
+)
+
+target_include_directories(sdio
+    PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}
+)
+
+target_link_libraries(sdio
+    PUBLIC
+        pico_stdlib
+        usb_cdc
+        FatFs_SPI
+)

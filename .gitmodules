@@ -1,0 +1,6 @@
+[submodule "src/drivers/ws2812/no_os_fatfs_sd_spi/no-OS-FatFS-SD-SPI-RPi-Pico"]
+	path = src/drivers/ws2812/no_os_fatfs_sd_spi/no-OS-FatFS-SD-SPI-RPi-Pico
+	url = https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico.git
+[submodule "src/drivers/no-OS-FatFS-SD-SPI-RPi-Pico"]
+	path = src/drivers/no-OS-FatFS-SD-SPI-RPi-Pico
+	url = https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico.git

@@ -33,9 +33,17 @@ project(fpv_sl C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
+# Add subdirectories with additional CMakeLists.txt
+add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
+add_subdirectory(modules/sdio)
+add_subdirectory(drivers/ws2812)
+add_subdirectory(modules/status_indicator)
+add_subdirectory(usb)
 
-add_executable(fpv_sl fpv_sl.c )
+# Add executable. Default name is the project name, version 0.1
+add_executable(fpv_sl
+    fpv_sl.c
+)
 
 pico_set_program_name(fpv_sl "fpv_sl")
 pico_set_program_version(fpv_sl "0.1")
@@ -44,19 +52,19 @@ pico_set_program_version(fpv_sl "0.1")
 pico_enable_stdio_uart(fpv_sl 0)
 pico_enable_stdio_usb(fpv_sl 0)
 
-# Add the standard library to the build
-target_link_libraries(fpv_sl
-        PRIVATE
-        pico_stdlib
-        pico_unique_id
-        tinyusb_device
-        tinyusb_board
-)
-
 # Add the standard include files to the build
 target_include_directories(fpv_sl PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-pico_add_extra_outputs(fpv_sl)
+# Add the standard library to the build
+target_link_libraries(fpv_sl
+        usb
+        pico_stdlib
+        pico_unique_id
+        sdio
+        ws2812
+        status_indicator
+)
 
+pico_add_extra_outputs(fpv_sl)
