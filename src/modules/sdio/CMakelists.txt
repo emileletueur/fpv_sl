@@ -10,6 +10,6 @@ target_include_directories(sdio
 target_link_libraries(sdio
     PUBLIC
         pico_stdlib
-        usb_cdc
+        usb
         FatFs_SPI
 )

@@ -1,5 +1,6 @@
 #include "bsp/board_api.h"
 #include "debug_cdc.h"
+#include "modules/sdio/sd_spi_hw_config.h"
 #include "modules/status_indicator/status_indicator.h"
 #include "status_indicator.h"
 #include "tusb.h"
@@ -36,6 +37,7 @@ int main() {
     // initialize the board and TinyUSB stack
     tusb_rhport_init_t dev_init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO};
     board_init();
+    // msc_sd_init();
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
 
     // init status LED indicator

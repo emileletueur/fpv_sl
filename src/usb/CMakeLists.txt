@@ -13,5 +13,6 @@ target_link_libraries(usb PUBLIC
     pico_stdlib
     tinyusb_device
     tinyusb_board
-    hardware_pio 
+    hardware_pio
+    FatFs_SPI
 )
