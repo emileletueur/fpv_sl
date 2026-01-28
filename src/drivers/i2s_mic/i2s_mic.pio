@@ -1,0 +1,40 @@
+.program audio_i2s
+.side_set 2 ; On contrôle 2 pins : SCK (bit 0) et WS (bit 1)
+
+public main:
+    set x, 30          side 0b01 ; Prépare 31 itérations (pour 32 bits), WS bas (Left)
+left_loop:
+    in pins, 1         side 0b00 ; Lit SD, SCK bas
+    jmp x-- left_loop  side 0b01 ; SCK haut, boucle 31 fois
+
+    in pins, 1         side 0b11 ; Lit le dernier bit, SCK haut, WS haut (Right)
+    set x, 30          side 0b11 ; Prépare 31 itérations, WS haut
+right_loop:
+    in pins, 1         side 0b10 ; Lit SD, SCK bas
+    jmp x-- right_loop side 0b11 ; SCK haut, boucle 31 fois
+
+    in pins, 1         side 0b01 ; Lit le dernier bit, SCK haut, WS bas (retour au début)
+
+% c-sdk {
+    static inline void audio_i2s_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint sck_pin_base, float div) {
+        pio_sm_config c = audio_i2s_program_get_default_config(offset);
+
+        // DATA pin en entrée
+        sm_config_set_in_pins(&c, data_pin);
+        // SCK et WS en side-set (sorties)
+        sm_config_set_sideset_pins(&c, sck_pin_base);
+
+        // On configure les directions des pins
+        pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false);     // In
+        pio_sm_set_consecutive_pindirs(pio, sm, sck_pin_base, 2, true);  // Out
+
+        // Autopush : dès que 32 bits sont lus, on les envoie vers le DMA
+        sm_config_set_in_shift(&c, false, true, 32);
+
+        // Vitesse de la machine d'état
+        sm_config_set_clkdiv(&c, div);
+
+        pio_sm_init(pio, sm, offset, &c);
+        pio_sm_set_enabled(pio, sm, true);
+    }
+%}

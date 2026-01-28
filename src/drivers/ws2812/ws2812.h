@@ -1,6 +1,5 @@
 #pragma once
 
-#include "hardware/pio.h"
 #include <stdint.h>
 
 // LED colors

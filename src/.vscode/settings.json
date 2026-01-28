@@ -3,7 +3,7 @@
     "C_Cpp.clang_format_style": "file",
     "C_Cpp.clang_format_fallbackStyle": "LLVM",
     // ========== Formatage automatique ==========
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "editor.formatOnPaste": false,
     "editor.formatOnType": false,
     // ========== Ligne verticale à 120 caractères ==========

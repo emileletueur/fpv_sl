@@ -4,11 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
+// Request for mount SD
+bool tud_msc_request_mount(void);
 // Mark the start of an activity
-bool tud_msc_busy(void);
-
-// Check for activity timeout
-void tud_msc_check_idle(void);
+bool tud_msc_is_busy(void);
 
 #endif // MSC_DISK_H

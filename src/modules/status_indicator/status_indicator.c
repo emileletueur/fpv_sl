@@ -1,9 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "hardware/clocks.h"
-#include "hardware/pio.h"
-#include "pico/stdlib.h"
 #include "status_indicator.h"
 #include "ws2812.h"
 // #ifdef PICO_DEFAULT_WS2812_PIN

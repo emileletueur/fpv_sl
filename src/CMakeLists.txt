@@ -28,7 +28,7 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(fpv_sl C CXX ASM)
+project(fpv_sl_loader C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
@@ -37,34 +37,36 @@ pico_sdk_init()
 add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
 add_subdirectory(modules/sdio)
 add_subdirectory(drivers/ws2812)
+add_subdirectory(drivers/i2s_mic)
 add_subdirectory(modules/status_indicator)
 add_subdirectory(usb)
 
 # Add executable. Default name is the project name, version 0.1
-add_executable(fpv_sl
-    fpv_sl.c
+add_executable(fpv_sl_loader
+    fpv_sl_loader.c
 )
 
-pico_set_program_name(fpv_sl "fpv_sl")
-pico_set_program_version(fpv_sl "0.1")
+pico_set_program_name(fpv_sl_loader "fpv_sl_loader")
+pico_set_program_version(fpv_sl_loader "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(fpv_sl 0)
-pico_enable_stdio_usb(fpv_sl 0)
+pico_enable_stdio_uart(fpv_sl_loader 0)
+pico_enable_stdio_usb(fpv_sl_loader 0)
 
 # Add the standard include files to the build
-target_include_directories(fpv_sl PRIVATE
+target_include_directories(fpv_sl_loader PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
 # Add the standard library to the build
-target_link_libraries(fpv_sl
+target_link_libraries(fpv_sl_loader
         usb
         pico_stdlib
         pico_unique_id
         sdio
         ws2812
+        i2s_mic
         status_indicator
 )
 
-pico_add_extra_outputs(fpv_sl)
+pico_add_extra_outputs(fpv_sl_loader)
