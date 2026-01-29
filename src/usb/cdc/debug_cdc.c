@@ -11,16 +11,11 @@ void debug_cdc(const char *msg) {
 }
 
 void debug_cdc_fmt(const char *fmt, ...) {
-    if (!tud_cdc_connected()) {
-        return;
-    }
-
-    char buffer[256]; // Adjust size as needed
+    char buffer[256];
     va_list args;
     va_start(args, fmt);
     int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
-
     if (len > 0) {
         tud_cdc_write(buffer, len);
         tud_cdc_write_flush();

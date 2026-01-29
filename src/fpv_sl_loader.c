@@ -9,9 +9,9 @@
 #include "usb/tusb_config.h"
 
 #define USB_ENUM_TIMEOUT_MS 3000
-#define USB_CDC_READY_MS 5000
+#define USB_CDC_READY_MS 1000
 
-bool config_readed = false;
+bool is_config_loaded = false;
 
 void process_msc_activity(void) {
     // Check of MSC activity
@@ -27,6 +27,12 @@ void process_msc_activity(void) {
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
     debug_cdc("Ejected !\r\n");
+}
+
+void fc_irq(uint gpio, uint32_t events) {
+    if (gpio == 1 && (events & GPIO_IRQ_EDGE_RISE)) {
+        // action
+    }
 }
 
 int main() {
@@ -64,15 +70,28 @@ int main() {
 
         // main usb loop
         while (1) {
-            // tud_msc_request_mount();
             tud_task();
             process_msc_activity();
             if (tud_cdc_available()) {
                 if (to_ms_since_boot(get_absolute_time()) - start_time > USB_CDC_READY_MS) {
-                    if (!config_readed) {
-                        debug_cdc("Read config file !\r\n");
+
+                    // Load main config file
+                    if (!is_config_loaded) {
                         read_conf_file();
-                        config_readed = true;
+                        const fpv_sl_conf_t *conf = get_conf();
+                        is_config_loaded = conf->conf_is_loaded;
+                        if (is_config_loaded) {
+
+                            // Initialize Flight Controller interface inputs
+
+                            gpio_set_irq_enabled_with_callback(1, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
+
+                            // Setup the next record file
+
+                            // Initialize I2S nems mic
+
+                            // Record main loop
+                        }
                     }
                 }
             }

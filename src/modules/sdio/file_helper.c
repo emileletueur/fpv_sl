@@ -4,10 +4,12 @@
 #include "../../usb/cdc/debug_cdc.h"
 #include "../../utils/cast_from_str.h"
 #include "ff.h"
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-static fpv_sl_conf_t fpv_sl_config;
+#define CONFIG_FILE_PATH "0:/default.conf"
+static fpv_sl_conf_t fpv_sl_config = {.conf_is_loaded = false};
 
 key_value_pair_t parse_conf_key_value(char *line) {
     key_value_pair_t result = {0};
@@ -71,44 +73,80 @@ bool read_line(char *buff, uint32_t buff_len, FIL *file_p) {
     return f_gets(buff, buff_len, file_p) != NULL;
 }
 
+const char *get_fresult_str(FRESULT res) {
+    switch (res) {
+    case FR_OK:
+        return "OK";
+    case FR_DISK_ERR:
+        return "DISK_ERR - Low level disk I/O error";
+    case FR_INT_ERR:
+        return "INT_ERR - Assertion failed";
+    case FR_NOT_READY:
+        return "NOT_READY - Drive not ready";
+    case FR_NO_FILE:
+        return "NO_FILE - File not found";
+    case FR_NO_PATH:
+        return "NO_PATH - Path not found";
+    case FR_INVALID_NAME:
+        return "INVALID_NAME - Invalid path name";
+    case FR_DENIED:
+        return "DENIED - Access denied";
+    case FR_EXIST:
+        return "EXIST - File exists";
+    case FR_INVALID_OBJECT:
+        return "INVALID_OBJECT - Invalid object";
+    case FR_WRITE_PROTECTED:
+        return "WRITE_PROTECTED";
+    case FR_INVALID_DRIVE:
+        return "INVALID_DRIVE - Invalid drive number";
+    case FR_NOT_ENABLED:
+        return "NOT_ENABLED - Work area not mounted";
+    case FR_NO_FILESYSTEM:
+        return "NO_FILESYSTEM - No valid FAT volume";
+    case FR_MKFS_ABORTED:
+        return "MKFS_ABORTED";
+    case FR_TIMEOUT:
+        return "TIMEOUT";
+    case FR_LOCKED:
+        return "LOCKED - File locked";
+    case FR_NOT_ENOUGH_CORE:
+        return "NOT_ENOUGH_CORE - Not enough memory";
+    case FR_TOO_MANY_OPEN_FILES:
+        return "TOO_MANY_OPEN_FILES";
+    case FR_INVALID_PARAMETER:
+        return "INVALID_PARAMETER";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+const fpv_sl_conf_t* get_conf(void) {
+    return &fpv_sl_config;
+}
+
 uint8_t read_conf_file(void) {
     FRESULT f_result;
-    FIL *config_file_p;
-    char *line = malloc(64);
+    FATFS config_fatfs_p;
+    FIL config_file_p;
+    char line[64];
 
-    f_result = f_open(config_file_p, CONFIG_BASE_DIR "" CONFIG_FILE_NAME, FA_READ);
+    debug_cdc("Read config file.\r\n");
+
+    f_result = f_mount(&config_fatfs_p, "0:", 1);
     if (f_result != FR_OK) {
-        debug_cdc("Config file not found, using defaults\r\n");
-        switch(f_result) {
-        case FR_NO_FILE:
-            debug_cdc("  -> File 'default.conf' not found in root\r\n");
-            debug_cdc("  -> Check if file exists on SD card\r\n");
-            break;
-        case FR_NO_PATH:
-            debug_cdc("  -> Path '0:/' not found\r\n");
-            break;
-        case FR_INVALID_NAME:
-            debug_cdc("  -> Invalid filename\r\n");
-            break;
-        case FR_NOT_ENABLED:
-            debug_cdc("  -> Drive not mounted!\r\n");
-            break;
-        case FR_NO_FILESYSTEM:
-            debug_cdc("  -> No FAT filesystem found\r\n");
-            break;
-        default:
-            debug_cdc("  -> Unknown error\r\n");
-            break;
-    }
+        debug_cdc_fmt("Mount failed: %d (%s)\r\n", f_result, get_fresult_str(f_result));
         return -1;
     }
 
-    while (read_line(line, sizeof(line), config_file_p)) {
+    f_result = f_open(&config_file_p, CONFIG_FILE_PATH, FA_READ);
+    if (f_result != FR_OK) {
+        debug_cdc_fmt("Config file error: %d\r\n", f_result);
+        return -1;
+    }
+
+    while (read_line(line, sizeof(line), &config_file_p)) {
         key_value_pair_t conf_item = parse_conf_key_value(line);
-        debug_cdc(conf_item.key);
-        debug_cdc(":");
-        debug_cdc(conf_item.value);
-        debug_cdc("\r\n");
+        debug_cdc_fmt("-> %s:%s\r\n", conf_item.key, conf_item.value);
         switch (string_to_key_enum(conf_item.key)) {
         case KEY_USE_ENABLE_PIN:
             fpv_sl_config.use_enable_pin = parse_bool(conf_item.value);
@@ -144,7 +182,8 @@ uint8_t read_conf_file(void) {
             break;
         }
     }
-    free(line);
+    fpv_sl_config.conf_is_loaded = true;
+    debug_cdc("Config loaded.\r\n");
     return 0;
 }
 

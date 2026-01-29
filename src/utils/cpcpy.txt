@@ -18,3 +18,76 @@
             debug_cdc("Partition Not Valid !");
         }
     }
+
+    void list_directory(const char *path) {
+    DIR dir;
+    FILINFO fno;
+    FRESULT fr;
+
+    // debug_cdc_fmt("Listing directory: %s\r\n", path);
+
+    fr = f_opendir(&dir, path);
+    if (fr != FR_OK) {
+        debug_cdc("opendir failed:\r\n");
+        return;
+    }
+
+    while (1) {
+        fr = f_readdir(&dir, &fno);
+        if (fr != FR_OK || fno.fname[0] == 0)
+            break;
+
+        // debug_cdc(fno.fname);
+    }
+
+    f_closedir(&dir);
+}
+
+    int read_config_file(void) {
+    FRESULT fr;
+    FATFS fs;
+    FIL config_file;
+    char line[256];
+
+    // 1. Mount filesystem
+    // debug_cdc("Mounting SD card...\r\n");
+    fr = f_mount(&fs, "0:", 1);
+    if (fr != FR_OK) {
+        debug_cdc_fmt("Mount failed: %d (%s)\r\n", fr, get_fresult_str(fr));
+        return -1;
+    }
+    // debug_cdc("Mount OK\r\n");
+
+    // 2. Optional: List files to verify
+    list_directory("0:/");
+
+    // 3. Open config file
+    // debug_cdc_fmt("Opening config file: %s\r\n", CONFIG_FILE_PATH);
+    fr = f_open(&config_file, CONFIG_FILE_PATH, FA_READ);
+    if (fr != FR_OK) {
+        debug_cdc_fmt("Open failed: %d (%s)\r\n", fr, get_fresult_str(fr));
+
+        if (fr == FR_NO_FILE) {
+            debug_cdc("File does not exist\r\n");
+        } else if (fr == FR_NO_PATH) {
+            debug_cdc("Directory path does not exist\r\n");
+        }
+
+        f_mount(NULL, "0:", 0); // Unmount
+        return -1;
+    }
+    debug_cdc_fmt("File opened, size: %lu bytes\r\n", f_size(&config_file));
+
+    // 4. Read file
+    while (f_gets(line, sizeof(line), &config_file)) {
+        debug_cdc_fmt("Line: %s", line); // Already has \n
+        // Parse config here
+    }
+
+    // 5. Close and unmount
+    f_close(&config_file);
+    f_mount(NULL, "0:", 0);
+
+    debug_cdc("Config loaded successfully\r\n");
+    return 0;
+}
