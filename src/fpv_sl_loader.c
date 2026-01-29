@@ -9,20 +9,17 @@
 #include "usb/tusb_config.h"
 
 #define USB_ENUM_TIMEOUT_MS 3000
+#define USB_CDC_READY_MS 5000
 
 bool config_readed = false;
 
 void process_msc_activity(void) {
     // Check of MSC activity
-    // tud_msc_check_idle();
     bool is_busy = tud_msc_is_busy();
 
     if (tud_msc_is_busy()) {
-        // debug_cdc("fpv_sl->set_usb_msc_transer_status()\r\n");
         set_usb_msc_transer_status();
     } else {
-        // sleep_ms(50);
-        // debug_cdc("fpv_sl->set_usb_msc_status()\r\n");
         set_usb_msc_status();
     }
 }
@@ -70,6 +67,15 @@ int main() {
             // tud_msc_request_mount();
             tud_task();
             process_msc_activity();
+            if (tud_cdc_available()) {
+                if (to_ms_since_boot(get_absolute_time()) - start_time > USB_CDC_READY_MS) {
+                    if (!config_readed) {
+                        debug_cdc("Read config file !\r\n");
+                        read_conf_file();
+                        config_readed = true;
+                    }
+                }
+            }
         }
     } else {
         debug_cdc("USB timeout\r\n");
@@ -78,14 +84,14 @@ int main() {
         sleep_ms(100);
         while (1) {
             // Votre code de record sans USB
-            if (tud_cdc_available()) {
-                debug_cdc("tud_cdc_available\r\n");
-                if (!config_readed) {
-                    debug_cdc("Read config file !\r\n");
-                    read_conf_file();
-                    config_readed = true;
-                }
-            }
+            // if (tud_cdc_available()) {
+            //     debug_cdc("tud_cdc_available\r\n");
+            //     if (!config_readed) {
+            //         debug_cdc("Read config file !\r\n");
+            //         read_conf_file();
+            //         config_readed = true;
+            //     }
+            // }
 
             tight_loop_contents();
         }

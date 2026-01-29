@@ -79,6 +79,27 @@ uint8_t read_conf_file(void) {
     f_result = f_open(config_file_p, CONFIG_BASE_DIR "" CONFIG_FILE_NAME, FA_READ);
     if (f_result != FR_OK) {
         debug_cdc("Config file not found, using defaults\r\n");
+        switch(f_result) {
+        case FR_NO_FILE:
+            debug_cdc("  -> File 'default.conf' not found in root\r\n");
+            debug_cdc("  -> Check if file exists on SD card\r\n");
+            break;
+        case FR_NO_PATH:
+            debug_cdc("  -> Path '0:/' not found\r\n");
+            break;
+        case FR_INVALID_NAME:
+            debug_cdc("  -> Invalid filename\r\n");
+            break;
+        case FR_NOT_ENABLED:
+            debug_cdc("  -> Drive not mounted!\r\n");
+            break;
+        case FR_NO_FILESYSTEM:
+            debug_cdc("  -> No FAT filesystem found\r\n");
+            break;
+        default:
+            debug_cdc("  -> Unknown error\r\n");
+            break;
+    }
         return -1;
     }
 

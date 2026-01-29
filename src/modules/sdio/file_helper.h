@@ -39,6 +39,17 @@ typedef struct {
     uint32_t data_bytes; // Size of audio data
 } wav_header_t;
 
+#if FF_MULTI_PARTITION
+// Partition table: {Physical drive, Partition index}
+PARTITION VolToPart[] = {
+    {0, 0},    // Logical drive 0 ==> Physical drive 0, Auto detect
+    {0, 1},    // Logical drive 1 ==> Physical drive 0, Partition 1
+    {0, 2},    // Logical drive 2 ==> Physical drive 0, Partition 2
+    {0, 3},    // Logical drive 3 ==> Physical drive 0, Partition 3
+    {1, 0},    // Logical drive 4 ==> Physical drive 1, Auto detect
+};
+#endif
+
 bool read_line(char *buff, uint32_t buff_len, FIL *file_p);
 uint8_t read_conf_file(void);
 uint8_t create_wav_file();

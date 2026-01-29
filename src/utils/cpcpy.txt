@@ -1,0 +1,20 @@
+    partition_info_t partitions[4];
+    FRESULT fr;
+    for (int i = 0; i < 4; i++) {
+        char path[4];
+        snprintf(path, sizeof(path), "%d:", i);
+
+        // Try to mount partition
+        fr = f_mount(&partitions[i].fs, path, 1); // 1 = mount immediately
+
+        if (fr == FR_OK) {
+            partitions[i].valid = true;
+
+            // Get volume label
+            f_getlabel(path, partitions[i].label, NULL);
+            debug_cdc(partitions[i].label);
+        } else {
+            partitions[i].valid = false;
+            debug_cdc("Partition Not Valid !");
+        }
+    }
