@@ -56,11 +56,12 @@ int32_t apply_filter_and_gain(hp_filter_t *f, int32_t sample) {
     return (int32_t) (y_f * 0.8f);
 }
 
+// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // --- HANDLER DMA ---
-void dma_handler() {
-    dma_hw->ints0 = 1u << 0; // Clear interrupt
-    buffer_ready = true;     // Signale au main de traiter les données
-}
+// void dma_handler() {
+//     dma_hw->ints0 = 1u << 0; // Clear interrupt
+//     buffer_ready = true;     // Signale au main de traiter les données
+// }
 
 void init_i2s_mic(i2s_mic_conf_t *i2s_config) {
     // Initialize PIO

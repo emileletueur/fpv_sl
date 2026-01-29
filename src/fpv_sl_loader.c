@@ -1,6 +1,7 @@
 #include "bsp/board_api.h"
 #include "debug_cdc.h"
 // #include "modules/sdio/sd_spi_hw_config.h"
+#include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
 #include "status_indicator.h"
 #include "tusb.h"
@@ -8,6 +9,8 @@
 #include "usb/tusb_config.h"
 
 #define USB_ENUM_TIMEOUT_MS 3000
+
+bool config_readed = false;
 
 void process_msc_activity(void) {
     // Check of MSC activity
@@ -24,10 +27,16 @@ void process_msc_activity(void) {
     }
 }
 
+// Invoked when device is unmounted
+void tud_umount_cb(void) {
+    debug_cdc("Ejected !\r\n");
+}
+
 int main() {
     // initialize the board and TinyUSB stack
     tusb_rhport_init_t dev_init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO};
-    board_init();
+
+    board_init_after_tusb();
 
     while (tud_msc_request_mount()) {
         ;
@@ -69,6 +78,15 @@ int main() {
         sleep_ms(100);
         while (1) {
             // Votre code de record sans USB
+            if (tud_cdc_available()) {
+                debug_cdc("tud_cdc_available\r\n");
+                if (!config_readed) {
+                    debug_cdc("Read config file !\r\n");
+                    read_conf_file();
+                    config_readed = true;
+                }
+            }
+
             tight_loop_contents();
         }
     }

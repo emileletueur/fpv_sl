@@ -36,6 +36,7 @@ pico_sdk_init()
 # Add subdirectories with additional CMakeLists.txt
 add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
 add_subdirectory(modules/sdio)
+add_subdirectory(utils)
 add_subdirectory(drivers/ws2812)
 add_subdirectory(drivers/i2s_mic)
 add_subdirectory(modules/status_indicator)
@@ -63,6 +64,7 @@ target_link_libraries(fpv_sl_loader
         usb
         pico_stdlib
         pico_unique_id
+        utils
         sdio
         ws2812
         i2s_mic

@@ -18,4 +18,4 @@
 `rcd_file_name`␣`mic_wav` | `abcdef`
 ###### Delete all WAV fiels from destination folder if 'enable' state is toggle 3 times in 5 seconds row
 ###### This will work only if on Disarm state, Arming will result on abort of delete attempt
-`delete_on_multiple_enable_tick`␣`true` | `false`
+`del_on_multiple_enable_tick`␣`true` | `false`

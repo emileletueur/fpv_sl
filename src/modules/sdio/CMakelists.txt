@@ -12,4 +12,5 @@ target_link_libraries(sdio
     pico_stdlib
     usb
     FatFs_SPI
+    utils
 )

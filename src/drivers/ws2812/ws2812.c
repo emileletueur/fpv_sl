@@ -72,13 +72,13 @@ void set_led(led_color_t color, led_mode_t mode) {
                            (COLOR_VALUES[color] >> 8) & 0xFF,  // G
                            COLOR_VALUES[color] & 0xFF          // B
                            ));
-        char buffer[64];
-        snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s (fixed)\r\n", COLOR_NAMES[color]);
-        debug_cdc(buffer);
+        // char buffer[64];
+        // snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s (fixed)\r\n", COLOR_NAMES[color]);
+        // debug_cdc(buffer);
     } else {
         led_state.blink_state = false;
-        snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s  (blink)\r\n", COLOR_NAMES[color]);
-        debug_cdc(buffer);
+        // snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s  (blink)\r\n", COLOR_NAMES[color]);
+        // debug_cdc(buffer);
     }
 }
 
