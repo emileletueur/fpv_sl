@@ -10,6 +10,9 @@ target_include_directories(usb PUBLIC
 )
 
 target_link_libraries(usb PUBLIC
+    fpv_sl_config
+    fpv_sl_logging
+    utils
     pico_stdlib
     tinyusb_device
     tinyusb_board

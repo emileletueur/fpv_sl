@@ -1,10 +1,10 @@
-#include "cdc/debug_cdc.h"
+#include "msc_disk.h"
 #include "ff.h"
 #include "diskio.h"
 #include "hw_config.h"
 #include "tusb.h"
 #include <pico/stdlib.h>
-
+#include "debug_log.h"
 #define DISK_BLOCK_SIZE 512
 #define PCNAME "0:"
 #define MSC_LUN 0
@@ -52,16 +52,16 @@ bool tud_msc_is_busy(void) {
 // HW SPI Configuration
 static spi_t spi_config = {
     .hw_inst = spi1,
-    .miso_gpio = 12,
-    .mosi_gpio = 11,
-    .sck_gpio = 10,
+    .sck_gpio = PIN_SD_SPI_SCK,
+    .mosi_gpio = PIN_SD_SPI_MOSI,
+    .miso_gpio = PIN_SD_SPI_MISO,
     .baud_rate = 25000 * 1000 // 12.5 MHz
 };
 
 // SD Card Configuration
 static sd_card_t sd_card = {.pcName = PCNAME,
                             .spi = &spi_config,
-                            .ss_gpio = 13,
+                            .ss_gpio = PIN_SD_SPI_CS,
                             .use_card_detect = false,
                             .card_detect_gpio = -1,
                             .card_detected_true = -1};
@@ -222,80 +222,3 @@ int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void *buffer, u
     }
     return (int32_t) resplen;
 }
-
-// // Mark the start of an activity
-// static inline void msc_set_busy(void) {
-//     msc_state.msc_busy = true;
-//     msc_state.last_activity_time = get_absolute_time();
-// }
-
-// // Check for activity timeout
-// void tud_msc_check_idle(void) {
-//     if (msc_state.msc_busy) {
-//         // if after 200ms of inactivity, mark as idle
-//         if (absolute_time_diff_us(msc_state.last_activity_time, get_absolute_time()) > 200000) {
-//             msc_state.msc_busy = false;
-//         }
-//     }
-// }
-
-// bool tud_msc_is_writable_cb(uint8_t lun) {
-//     (void) lun;
-//     return false;
-// }
-
-// Invoked when device is mounted
-// void tud_mount_cb(void) {
-//     debug_cdc("tud_mount_cb");
-
-//     if (!sd_init_driver()) {
-//         debug_cdc("SD card init failed!");
-//         msc_state.sd_mounted = false;
-//         return;
-//     }
-
-//     // Monter la carte SD
-//     FRESULT fr = f_mount(&msc_state.fs, "0:", 1);
-//     if (fr == FR_OK) {
-//         msc_state.sd_mounted = true;
-//         debug_cdc("SD card mounted successfully");
-//     } else {
-//         msc_state.sd_mounted = false;
-//         // debug_cdc("SD mount failed: %d", fr);
-//         debug_cdc("SD mount failed !");
-//     }
-//     debug_cdc("Tud mounted !");
-// }
-
-// Invoked when device is unmounted
-// void tud_umount_cb(void) {
-//     debug_cdc("Tud unmounted !");
-// }
-
-// Invoked when usb bus is suspended
-// remote_wakeup_en : if host allow us  to perform remote wakeup
-// Within 7ms, device must draw an average of current less than 2.5 mA from bus
-// void tud_suspend_cb(bool remote_wakeup_en) {
-//     (void) remote_wakeup_en;
-//     debug_cdc("Tud suspended !");
-// }
-
-// Invoked when usb bus is resumed
-// void tud_resume_cb(void) {
-//     debug_cdc("Tud resumed !");
-// }
-
-// Invoked when received SCSI_CMD_INQUIRY, v2 with full inquiry response
-// uint32_t tud_msc_inquiry2_cb(uint8_t lun, scsi_inquiry_resp_t *inquiry_resp, uint32_t bufsize) {
-//     (void) lun;
-//     (void) bufsize;
-//     const char vid[] = "TinyUSB";
-//     const char pid[] = "Mass Storage";
-//     const char rev[] = "1.0";
-
-//     (void) strncpy((char *) inquiry_resp->vendor_id, vid, 8);
-//     (void) strncpy((char *) inquiry_resp->product_id, pid, 16);
-//     (void) strncpy((char *) inquiry_resp->product_rev, rev, 4);
-
-//     return sizeof(scsi_inquiry_resp_t); // 36 bytes
-// }

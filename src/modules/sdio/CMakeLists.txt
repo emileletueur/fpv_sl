@@ -7,8 +7,8 @@ target_include_directories(sdio
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_link_libraries(sdio
-    PUBLIC
+target_link_libraries(sdio PUBLIC
+    fpv_sl_config
     pico_stdlib
     usb
     FatFs_SPI

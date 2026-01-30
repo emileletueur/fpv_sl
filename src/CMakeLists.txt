@@ -33,6 +33,23 @@ project(fpv_sl_loader C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+add_library(fpv_sl_config INTERFACE)
+add_library(fpv_sl_logging INTERFACE)
+
+target_compile_definitions(fpv_sl_config INTERFACE
+    USE_CUSTOM_BOARD_PINS
+    USE_SD_SPI
+)
+
+target_compile_definitions(fpv_sl_logging INTERFACE
+    DEBUG_LOG_ENABLE
+    LOG_LEVEL=LOG_LEVEL_DBG
+)
+
+target_include_directories(fpv_sl_logging INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/utils
+)
+
 # Add subdirectories with additional CMakeLists.txt
 add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
 add_subdirectory(modules/sdio)
@@ -41,6 +58,7 @@ add_subdirectory(drivers/ws2812)
 add_subdirectory(drivers/i2s_mic)
 add_subdirectory(modules/status_indicator)
 add_subdirectory(usb)
+
 
 # Add executable. Default name is the project name, version 0.1
 add_executable(fpv_sl_loader
@@ -57,10 +75,13 @@ pico_enable_stdio_usb(fpv_sl_loader 0)
 # Add the standard include files to the build
 target_include_directories(fpv_sl_loader PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/modules
+        ${CMAKE_CURRENT_LIST_DIR}/utils
 )
 
 # Add the standard library to the build
 target_link_libraries(fpv_sl_loader
+        fpv_sl_config
         usb
         pico_stdlib
         pico_unique_id

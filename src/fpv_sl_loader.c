@@ -1,5 +1,5 @@
 #include "bsp/board_api.h"
-#include "debug_cdc.h"
+#include "debug_log.h"
 // #include "modules/sdio/sd_spi_hw_config.h"
 #include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
@@ -26,7 +26,7 @@ void process_msc_activity(void) {
 
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
-    debug_cdc("Ejected !\r\n");
+    LOGI("Ejected !\r\n");
 }
 
 void fc_irq(uint gpio, uint32_t events) {
@@ -65,7 +65,7 @@ int main() {
     }
 
     if (is_device_enumerated) {
-        debug_cdc("USB init OK\r\n");
+        LOGI("USB init OK\r\n");
         set_usb_msc_status();
 
         // main usb loop
@@ -97,16 +97,16 @@ int main() {
             }
         }
     } else {
-        debug_cdc("USB timeout\r\n");
+        LOGI("USB timeout\r\n");
         // run main record loop
         tud_disconnect();
         sleep_ms(100);
         while (1) {
             // Votre code de record sans USB
             // if (tud_cdc_available()) {
-            //     debug_cdc("tud_cdc_available\r\n");
+            //     LOGI("tud_cdc_available\r\n");
             //     if (!config_readed) {
-            //         debug_cdc("Read config file !\r\n");
+            //         LOGI("Read config file !\r\n");
             //         read_conf_file();
             //         config_readed = true;
             //     }

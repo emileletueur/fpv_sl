@@ -5,12 +5,14 @@
  */
 
 #include "ws2812.h"
-#include "../../usb/cdc/debug_cdc.h"
 #include "hardware/pio.h"
 #include "pico/time.h"
 #include "ws2812.pio.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "debug_log.h"
+
+
 
 #define WS2812_SM 0
 #define WS2812_FREQ 800000
@@ -72,13 +74,8 @@ void set_led(led_color_t color, led_mode_t mode) {
                            (COLOR_VALUES[color] >> 8) & 0xFF,  // G
                            COLOR_VALUES[color] & 0xFF          // B
                            ));
-        // char buffer[64];
-        // snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s (fixed)\r\n", COLOR_NAMES[color]);
-        // debug_cdc(buffer);
     } else {
         led_state.blink_state = false;
-        // snprintf(buffer, sizeof(buffer), "[STATUS] LED set to color %s  (blink)\r\n", COLOR_NAMES[color]);
-        // debug_cdc(buffer);
     }
 }
 

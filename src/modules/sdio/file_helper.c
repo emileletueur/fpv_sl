@@ -1,8 +1,8 @@
 
 #include "file_helper.h"
 #include "../../config/fpv_sl_config.h"
-#include "../../usb/cdc/debug_cdc.h"
 #include "../../utils/cast_from_str.h"
+#include "debug_log.h"
 #include "ff.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -130,23 +130,23 @@ uint8_t read_conf_file(void) {
     FIL config_file_p;
     char line[64];
 
-    debug_cdc("Read config file.\r\n");
+    LOGI("Read config file.\r\n");
 
     f_result = f_mount(&config_fatfs_p, "0:", 1);
     if (f_result != FR_OK) {
-        debug_cdc_fmt("Mount failed: %d (%s)\r\n", f_result, get_fresult_str(f_result));
+        LOGI("Mount failed: %d (%s)\r\n", f_result, get_fresult_str(f_result));
         return -1;
     }
 
     f_result = f_open(&config_file_p, CONFIG_FILE_PATH, FA_READ);
     if (f_result != FR_OK) {
-        debug_cdc_fmt("Config file error: %d\r\n", f_result);
+        LOGI("Config file error: %d\r\n", f_result);
         return -1;
     }
 
     while (read_line(line, sizeof(line), &config_file_p)) {
         key_value_pair_t conf_item = parse_conf_key_value(line);
-        debug_cdc_fmt("-> %s:%s\r\n", conf_item.key, conf_item.value);
+        LOGI("-> %s:%s\r\n", conf_item.key, conf_item.value);
         switch (string_to_key_enum(conf_item.key)) {
         case KEY_USE_ENABLE_PIN:
             fpv_sl_config.use_enable_pin = parse_bool(conf_item.value);
@@ -183,7 +183,7 @@ uint8_t read_conf_file(void) {
         }
     }
     fpv_sl_config.conf_is_loaded = true;
-    debug_cdc("Config loaded.\r\n");
+    LOGI("Config loaded.\r\n");
     return 0;
 }
 

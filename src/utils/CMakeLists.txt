@@ -1,5 +1,6 @@
 add_library(utils
     cast_from_str.c
+    debug_log.c
 )
 
 target_include_directories(utils
@@ -7,7 +8,8 @@ target_include_directories(utils
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_link_libraries(utils
-    PUBLIC
+target_link_libraries(utils PUBLIC
     pico_stdlib
+    usb
+
 )

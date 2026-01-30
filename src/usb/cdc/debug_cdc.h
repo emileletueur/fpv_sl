@@ -1,3 +1,4 @@
 #pragma once
-void debug_cdc(const char *msg);
-void debug_cdc_fmt(const char *fmt, ...);
+#include <stdarg.h>
+
+void debug_cdc_vprintf(const char *fmt, va_list args);
