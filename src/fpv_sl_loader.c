@@ -1,6 +1,9 @@
 #include "bsp/board_api.h"
+#include "config/fpv_sl_config.h"
 #include "debug_log.h"
 // #include "modules/sdio/sd_spi_hw_config.h"
+#include "i2s_mic.h"
+#include "modules/gpio/gpio_interface.h"
 #include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
 #include "status_indicator.h"
@@ -9,7 +12,7 @@
 #include "usb/tusb_config.h"
 
 #define USB_ENUM_TIMEOUT_MS 3000
-#define USB_CDC_READY_MS 1000
+#define USB_CDC_READY_MS 5000
 
 bool is_config_loaded = false;
 
@@ -27,12 +30,6 @@ void process_msc_activity(void) {
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
     LOGI("Ejected !\r\n");
-}
-
-void fc_irq(uint gpio, uint32_t events) {
-    if (gpio == 1 && (events & GPIO_IRQ_EDGE_RISE)) {
-        // action
-    }
 }
 
 int main() {
@@ -82,13 +79,15 @@ int main() {
                         is_config_loaded = conf->conf_is_loaded;
                         if (is_config_loaded) {
 
-                            // Initialize Flight Controller interface inputs
+                            // Initialize I2S nems mic
+                            i2s_mic_conf_t i2s_mic_conf = {.sample_rate = conf->sample_rate,
+                                                           .is_mono_rcd = conf->is_mono_rcd};
+                            init_i2s_mic(&i2s_mic_conf);
 
-                            gpio_set_irq_enabled_with_callback(1, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
+                            // Initialize Flight Controller interface inputs
+                            initialize_gpio_interface(start_i2s_mic_rcd, start_i2s_mic_rcd);
 
                             // Setup the next record file
-
-                            // Initialize I2S nems mic
 
                             // Record main loop
                         }

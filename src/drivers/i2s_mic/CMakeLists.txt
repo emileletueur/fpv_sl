@@ -12,6 +12,7 @@ target_include_directories(i2s_mic PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(i2s_mic
     hardware_pio
     pico_stdlib
+    fpv_sl_logging
     hardware_pio
     hardware_dma
 )

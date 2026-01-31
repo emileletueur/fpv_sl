@@ -7,10 +7,10 @@
 #include <hardware/clocks.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "debug_log.h"
 
-#define PIN_SD 2         // Data
-#define PIN_SCK 3        // Clock (Base pour SCK et WS)
-
+static int i2s_dma_channel;
+static volatile bool is_dma_transfer_done = false;
 
 DMA_bufffer_t create_buffer(size_t size) {
     DMA_bufffer_t buf;
@@ -56,12 +56,18 @@ int32_t apply_filter_and_gain(hp_filter_t *f, int32_t sample) {
     return (int32_t) (y_f * 0.8f);
 }
 
-// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// --- HANDLER DMA ---
-// void dma_handler() {
-//     dma_hw->ints0 = 1u << 0; // Clear interrupt
-//     buffer_ready = true;     // Signale au main de traiter les données
-// }
+void dma_handler() {
+    dma_hw->ints0 = 1u << 0;
+    is_dma_transfer_done = true;
+}
+
+void start_i2s_mic_rcd(void) {
+    LOGI("Start I2S NEMS MIC DMA Channel.");
+    is_dma_transfer_done = false;
+    dma_channel_start(i2s_dma_channel);
+}
+
+void stop_i2s_mic_rcd(void);
 
 void init_i2s_mic(i2s_mic_conf_t *i2s_config) {
     // Initialize PIO
@@ -71,7 +77,7 @@ void init_i2s_mic(i2s_mic_conf_t *i2s_config) {
     uint offset = pio_add_program(pio, &audio_i2s_program);
     float freq_sck = i2s_config->sample_rate * 32 * i2s_config->is_mono_rcd;
     float divider = (float) clock_get_hz(clk_sys) / (freq_sck * 2);
-    audio_i2s_program_init(pio, sm, offset, PIN_SD, PIN_SCK, divider);
+    audio_i2s_program_init(pio, sm, offset, PIN_I2S_NEMS_MIC_SD, PIN_I2S_NEMS_MIC_SCK, divider);
 
     // Initialyze DMA
     i2s_config->dma_channel = dma_claim_unused_channel(true);
@@ -83,6 +89,9 @@ void init_i2s_mic(i2s_mic_conf_t *i2s_config) {
 
     dma_channel_configure(i2s_config->dma_channel, &dma_channel_config, dma_buffer.data, &pio->rxf[sm],
                           i2s_config->buffer_size, false);
+
+    i2s_dma_channel = i2s_config->dma_channel;
+    LOGI("I2S NEMS MIC Initialization done.");
 }
 
 void i2s_loop(i2s_mic_conf_t *i2s_config) {

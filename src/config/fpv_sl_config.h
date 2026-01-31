@@ -12,6 +12,7 @@
 #define USE_HIGH_PASS_FILTER "USE_HIGH_PASS_FILTER"
 #define HIGH_PASS_CUTOFF_FREQ "HIGH_PASS_CUTOFF_FREQ"
 #define SAMPLE_RATE "SAMPLE_RATE"
+#define IS_MONO_RCD "IS_MONO_RCD"
 #define NEXT_FILE_NAME_INDEX "NEXT_FILE_NAME_INDEX"
 #define RCD_FOLDER "RCD_FOLDER"
 #define RCD_FILE_NAME "RCD_FILE_NAME"
@@ -32,11 +33,27 @@ typedef enum {
     KEY_USE_HIGH_PASS_FILTER,
     KEY_HIGH_PASS_CUTOFF_FREQ,
     KEY_SAMPLE_RATE,
+    KEY_IS_MONO_RCD,
     KEY_NEXT_FILE_NAME_INDEX,
     KEY_RCD_FOLDER,
     KEY_RCD_FILE_NAME,
     KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
 } config_key_enum_t;
+
+typedef struct {
+    bool conf_is_loaded;
+    bool use_enable_pin;           // record only be triggerd by arm/desarm pin
+    bool always_rcd;               // record as soon as module is powered
+    uint8_t mic_gain;              // use to tune mic gain
+    bool use_high_pass_filter;     // use the low pass filter
+    uint8_t high_pass_cutoff_freq; // the cutoff frequency of numeric low pass filter
+    uint16_t sample_rate;          // i2s rcd sample rate
+    bool is_mono_rcd;          // i2s rcd sample rate
+    uint16_t next_file_name_index; // the index used in file name to ensure unicity
+    char *rcd_folder;
+    char *rcd_file_name;
+    bool delete_on_multiple_enable_tick;
+} fpv_sl_conf_t;
 
 key_value_pair_t parse_conf_key_value(char *line);
 config_key_enum_t string_to_key_enum(const char *key);

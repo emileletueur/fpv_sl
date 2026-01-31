@@ -4,6 +4,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef PIN_I2S_NEMS_MIC_SD
+#define PIN_I2S_NEMS_MIC_SD 26
+#endif
+
+#ifndef PIN_I2S_NEMS_MIC_SCK
+#define PIN_I2S_NEMS_MIC_SCK 27
+#endif
+
+#ifndef PIN_I2S_NEMS_MIC_WS
+#define PIN_I2S_NEMS_MIC_WS 28
+#endif
+
 typedef struct {
     int32_t *data;
     size_t size;

@@ -1,5 +1,5 @@
 add_library(gpio
-    file_helper.c
+    gpio_interface.c
 )
 
 target_include_directories(gpio
@@ -9,5 +9,6 @@ target_include_directories(gpio
 
 target_link_libraries(gpio
     PUBLIC
+    fpv_sl_logging
     pico_stdlib
 )

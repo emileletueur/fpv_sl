@@ -10,6 +10,8 @@
 `high_pass_cutoff_freq`␣`50` ~ `500`
 ###### i2s record sample rate
 `sample_rate`␣`22080` | `44180`
+###### use mono record
+`is_mono_rcd`␣`true` | `false`
 ###### Autoincremented index used in file name to ensure unicity
 `next_file_name_index`␣`1` ~ `...`
 ###### WAV files destination folder

@@ -58,6 +58,8 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_HIGH_PASS_CUTOFF_FREQ;
     if (strcmp(key, SAMPLE_RATE) == 0)
         return KEY_SAMPLE_RATE;
+    if (strcmp(key, IS_MONO_RCD) == 0)
+        return KEY_IS_MONO_RCD;
     if (strcmp(key, NEXT_FILE_NAME_INDEX) == 0)
         return KEY_NEXT_FILE_NAME_INDEX;
     if (strcmp(key, RCD_FOLDER) == 0)
@@ -165,6 +167,9 @@ uint8_t read_conf_file(void) {
             break;
         case KEY_SAMPLE_RATE:
             fpv_sl_config.sample_rate = parse_uint16(conf_item.value);
+            break;
+        case KEY_IS_MONO_RCD:
+            fpv_sl_config.is_mono_rcd = parse_uint16(conf_item.value);
             break;
         case KEY_NEXT_FILE_NAME_INDEX:
             fpv_sl_config.next_file_name_index = parse_uint16(conf_item.value);
