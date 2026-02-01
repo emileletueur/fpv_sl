@@ -5,10 +5,16 @@
 #include "debug_log.h"
 #include "ff.h"
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define CONFIG_FILE_PATH "0:/default.conf"
+#define TEMPORARY_FILE_NAME "t_mic_rcd.wav"
+
+FATFS fatfs_mount_p;
+FIL file_p;
+
 static fpv_sl_conf_t fpv_sl_config = {.conf_is_loaded = false};
 
 key_value_pair_t parse_conf_key_value(char *line) {
@@ -71,6 +77,10 @@ config_key_enum_t string_to_key_enum(const char *key) {
     return KEY_UNKNOWN;
 }
 
+const fpv_sl_conf_t *get_conf(void) {
+    return &fpv_sl_config;
+}
+
 bool read_line(char *buff, uint32_t buff_len, FIL *file_p) {
     return f_gets(buff, buff_len, file_p) != NULL;
 }
@@ -122,33 +132,27 @@ const char *get_fresult_str(FRESULT res) {
     }
 }
 
-const fpv_sl_conf_t* get_conf(void) {
-    return &fpv_sl_config;
-}
-
 uint8_t read_conf_file(void) {
     FRESULT f_result;
-    FATFS config_fatfs_p;
-    FIL config_file_p;
     char line[64];
 
-    LOGI("Read config file.\r\n");
+    LOGI("Read config file.");
 
-    f_result = f_mount(&config_fatfs_p, "0:", 1);
+    f_result = f_mount(&fatfs_mount_p, "0:", 1);
     if (f_result != FR_OK) {
-        LOGI("Mount failed: %d (%s)\r\n", f_result, get_fresult_str(f_result));
+        LOGI("Mount failed: %d (%s).", f_result, get_fresult_str(f_result));
         return -1;
     }
 
-    f_result = f_open(&config_file_p, CONFIG_FILE_PATH, FA_READ);
+    f_result = f_open(&file_p, CONFIG_FILE_PATH, FA_READ);
     if (f_result != FR_OK) {
-        LOGI("Config file error: %d\r\n", f_result);
+        LOGI("Config file error: %d.", f_result);
         return -1;
     }
 
-    while (read_line(line, sizeof(line), &config_file_p)) {
+    while (read_line(line, sizeof(line), &file_p)) {
         key_value_pair_t conf_item = parse_conf_key_value(line);
-        LOGI("-> %s:%s\r\n", conf_item.key, conf_item.value);
+        LOGI("Config item -> %s:%s.", conf_item.key, conf_item.value);
         switch (string_to_key_enum(conf_item.key)) {
         case KEY_USE_ENABLE_PIN:
             fpv_sl_config.use_enable_pin = parse_bool(conf_item.value);
@@ -188,11 +192,29 @@ uint8_t read_conf_file(void) {
         }
     }
     fpv_sl_config.conf_is_loaded = true;
-    LOGI("Config loaded.\r\n");
+    LOGI("Config loaded.");
+
+    f_result = f_close(&file_p);
+    if (f_result != FR_OK) {
+        LOGI("Close file err: %d.", f_result);
+    } else {
+        LOGI("File closed succesfully.");
+    }
     return 0;
 }
 
-uint8_t create_wav_file();
+uint8_t create_wav_file(void) {
+    if (!fpv_sl_config.conf_is_loaded)
+        return -1;
+    char file_path[64];
+    snprintf(file_path, sizeof(file_path), "0:/%s%s", fpv_sl_config.rcd_folder, TEMPORARY_FILE_NAME);
+    FRESULT res = f_open(&fil, file_path, FA_WRITE | FA_CREATE_NEW);
+    if (res != FR_OK) {
+        printf("Erreur d'ouverture : %d\n", res);
+    }
+
+    return 0;
+}
 uint8_t append_wav_header();
 uint8_t get_file_name();
 uint8_t list_wav_files(void);

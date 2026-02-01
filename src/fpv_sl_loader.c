@@ -29,7 +29,7 @@ void process_msc_activity(void) {
 
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
-    LOGI("Ejected !\r\n");
+    LOGI("Ejected.");
 }
 
 int main() {
@@ -62,7 +62,7 @@ int main() {
     }
 
     if (is_device_enumerated) {
-        LOGI("USB init OK\r\n");
+        LOGI("USB init OK.");
         set_usb_msc_status();
 
         // main usb loop
@@ -96,7 +96,7 @@ int main() {
             }
         }
     } else {
-        LOGI("USB timeout\r\n");
+        LOGI("USB timeout.");
         // run main record loop
         tud_disconnect();
         sleep_ms(100);

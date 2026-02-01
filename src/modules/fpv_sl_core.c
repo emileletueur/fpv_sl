@@ -21,21 +21,30 @@ uint8_t compute_execution_condition(fpv_sl_conf_t *fpv_sl_conf) {
 void fpv_sl_core_loop(void) {
     switch (execution_condition) {
     case CLASSIC_TYPE:
-        // Setup new file name
+        // Setup temporary file to write
         // waiting for ENABLE trigger to start I2S DMA
+        // set LED indicator
         // waiting for ARM trigger to write sound data
+        // set LED indicator
         // Record until DESARM
-        // Finalize WAV
+        // set LED indicator
+        // Finalize with WAV header
+        // Rename file with final computed name
+        // Update file index in conf file
     case RCD_ONLY_TYPE:
-        // Setup new file name and start I2S DMA
+        // Setup temporary file to write and start I2S DMA
         // waiting for ARM trigger to write sound data
         // Record until DESARM
-        // Finalize WAV
+        // Finalize with WAV header
+        // Rename file with final computed name
+        // Update file index in conf file
     case ALWAY_RCD_TYPE:
-        // Setup new file name
+        // Setup temporary file to write
         // start I2S DMA
         // Record until DESARM
-        // Finalize WAV
+        // Finalize with WAV header
+        // Rename file with final computed name
+        // Update file index in conf file
         break;
     }
 }

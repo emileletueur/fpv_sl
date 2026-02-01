@@ -31,7 +31,7 @@ const fpv_sl_conf_t *get_conf(void);
 bool read_line(char *buff, uint32_t buff_len, FIL *file_p);
 uint8_t read_conf_file(void);
 int read_config_file(void);
-uint8_t create_wav_file();
+uint8_t create_wav_file(void);
 uint8_t append_wav_header();
 uint8_t get_file_name();
 uint8_t list_wav_files(void);
