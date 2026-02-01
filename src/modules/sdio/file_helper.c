@@ -5,6 +5,7 @@
 #include "debug_log.h"
 #include "ff.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -207,14 +208,72 @@ uint8_t create_wav_file(void) {
     if (!fpv_sl_config.conf_is_loaded)
         return -1;
     char file_path[64];
-    snprintf(file_path, sizeof(file_path), "0:/%s%s", fpv_sl_config.rcd_folder, TEMPORARY_FILE_NAME);
-    FRESULT res = f_open(&file_p, file_path, FA_WRITE | FA_CREATE_NEW);
-    if (res != FR_OK) {
-        printf("Erreur d'ouverture : %d\n", res);
+    snprintf(file_path, sizeof(file_path), "0:/%s", TEMPORARY_FILE_NAME);
+    FRESULT f_result = f_open(&file_p, file_path, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+    if (f_result != FR_OK) {
+        LOGI("Failed to create temporary file: %d", f_result);
     }
 
     return 0;
 }
-uint8_t append_wav_header();
-uint8_t get_file_name();
-uint8_t list_wav_files(void);
+
+uint8_t finalize_wav_file(uint32_t rcd_duration) {
+    FRESULT f_result;
+    f_result = f_close(&file_p);
+    if (f_result != FR_OK) {
+        LOGI("Close wav file err: %d.", f_result);
+    } else {
+        LOGI("WAV file finalised succesfully.");
+    }
+
+    char original_file_path_name[64];
+    char final_file_path_name[64];
+    char time_str[6];
+    uint32_t seconds = rcd_duration / 1000;
+    uint32_t minutes = seconds / 60;
+    seconds %= 60;
+
+    snprintf(time_str, 6, "%02u-%02u", minutes, seconds);
+
+    snprintf(original_file_path_name, sizeof(original_file_path_name), "0:/%s", TEMPORARY_FILE_NAME);
+    snprintf(final_file_path_name, sizeof(final_file_path_name), "0:/%s%s", fpv_sl_config.rcd_folder, time_str);
+    f_result = f_rename(original_file_path_name, final_file_path_name);
+    if (f_result != FR_OK) {
+        LOGI("Move wav file err: %d.", f_result);
+    } else {
+        LOGI("WAV file moved in destination folder succesfully.");
+    }
+    return 0;
+}
+
+uint8_t append_wav_header(uint32_t data_size) {
+    FRESULT f_result;
+    UINT bytes_written;
+    wav_header_t header = {.riff_header = {'R', 'I', 'F', 'F'},
+                           .wave_header = {'W', 'A', 'V', 'E'},
+                           .fmt_header = {'f', 'm', 't', ' '},
+                           .data_header = {'D', 'A', 'T', 'A'},
+                           .fmt_chunk_size = 16,
+                           .audio_format = 1,
+                           .num_channels = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .sample_rate = fpv_sl_config.sample_rate,
+                           .bits_per_sample = 16,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .block_align = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .wav_size = 36 + 1000,
+                           .data_bytes = 1000};
+
+    f_result = f_lseek(&file_p, 0);
+    if (f_result != FR_OK || bytes_written != sizeof(header)) {
+        // Gestion d'erreur
+        LOGI("Err while seek 0 the file : %d", f_result);
+    }
+
+    f_result = f_write(&file_p, &header, sizeof(header), &bytes_written);
+    if (f_result != FR_OK || bytes_written != sizeof(header)) {
+        // Gestion d'erreur
+        LOGI("Err while write header : %d", f_result);
+    }
+
+    return 0;
+}
