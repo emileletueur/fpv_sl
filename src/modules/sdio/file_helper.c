@@ -208,7 +208,7 @@ uint8_t create_wav_file(void) {
         return -1;
     char file_path[64];
     snprintf(file_path, sizeof(file_path), "0:/%s%s", fpv_sl_config.rcd_folder, TEMPORARY_FILE_NAME);
-    FRESULT res = f_open(&fil, file_path, FA_WRITE | FA_CREATE_NEW);
+    FRESULT res = f_open(&file_p, file_path, FA_WRITE | FA_CREATE_NEW);
     if (res != FR_OK) {
         printf("Erreur d'ouverture : %d\n", res);
     }
