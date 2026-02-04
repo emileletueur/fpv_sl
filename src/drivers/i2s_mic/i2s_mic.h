@@ -17,19 +17,15 @@
 #endif
 
 typedef struct {
-    int32_t *data;
-    size_t size;
-} DMA_bufffer_t;
+    uint32_t sample_rate;
+    bool is_mono;
+    int32_t *buffer_ping;
+    int32_t *buffer_pong;
+    uint32_t buffer_size;
+    volatile bool data_ready;
+    int32_t *active_buffer_ptr;
+    uint32_t current_data_count;
+} i2s_mic_t;
 
-typedef struct {
-    uint32_t sample_rate; // sample rate
-    uint8_t is_mono_rcd;  // 1-> mono; 2-> stereo
-    int32_t buffer_size;  // 1024
-    int dma_channel;
-    DMA_bufffer_t dma_buffer;
-    bool buffer_ready;
-} i2s_mic_conf_t;
-
-void init_i2s_mic(i2s_mic_conf_t *i2s_config);
-void start_i2s_mic_rcd(void);
-void stop_i2s_mic_rcd(void);
+void i2s_mic_init(i2s_mic_t *config);
+void i2s_mic_start();

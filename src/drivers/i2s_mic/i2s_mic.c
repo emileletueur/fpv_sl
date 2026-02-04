@@ -1,4 +1,5 @@
 #include "i2s_mic.h"
+#include "debug_log.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/pio.h"
@@ -7,10 +8,11 @@
 #include <hardware/clocks.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "debug_log.h"
 
 static int i2s_dma_channel;
 static volatile bool is_dma_transfer_done = false;
+
+int dma_chan_a, dma_chan_b;
 
 DMA_bufffer_t create_buffer(size_t size) {
     DMA_bufffer_t buf;
@@ -61,7 +63,7 @@ void dma_handler() {
     is_dma_transfer_done = true;
 }
 
-void start_i2s_mic_rcd(void) {
+void i2s_mic_start(void) {
     LOGI("Start I2S NEMS MIC DMA Channel.");
     is_dma_transfer_done = false;
     dma_channel_start(i2s_dma_channel);
@@ -69,49 +71,37 @@ void start_i2s_mic_rcd(void) {
 
 void stop_i2s_mic_rcd(void);
 
-void init_i2s_mic(i2s_mic_conf_t *i2s_config) {
+void init_i2s_mic(i2s_mic_t *i2s_mic) {
+
     // Initialize PIO
     PIO pio = pio0;
     uint sm = 0;
-    DMA_bufffer_t dma_buffer = create_buffer(i2s_config->buffer_size);
     uint offset = pio_add_program(pio, &audio_i2s_program);
-    float freq_sck = i2s_config->sample_rate * 32 * i2s_config->is_mono_rcd;
-    float divider = (float) clock_get_hz(clk_sys) / (freq_sck * 2);
+    float divider = (float) clock_get_hz(clk_sys) / (i2s_mic->sample_rate * 32 * 2 * 2);
     audio_i2s_program_init(pio, sm, offset, PIN_I2S_NEMS_MIC_SD, PIN_I2S_NEMS_MIC_SCK, divider);
 
-    // Initialyze DMA
-    i2s_config->dma_channel = dma_claim_unused_channel(true);
-    dma_channel_config dma_channel_config = dma_channel_get_default_config(i2s_config->dma_channel);
-    channel_config_set_read_increment(&dma_channel_config, false);
-    channel_config_set_write_increment(&dma_channel_config, true);
-    channel_config_set_dreq(&dma_channel_config, pio_get_dreq(pio, sm, false));
-    channel_config_set_transfer_data_size(&dma_channel_config, DMA_SIZE_32);
+    // Config DMA Ping-Pong
+    dma_chan_a = dma_claim_unused_channel(true);
+    dma_chan_b = dma_claim_unused_channel(true);
 
-    dma_channel_configure(i2s_config->dma_channel, &dma_channel_config, dma_buffer.data, &pio->rxf[sm],
-                          i2s_config->buffer_size, false);
+    // Config Chan A
+    dma_channel_config c_a = dma_channel_get_default_config(dma_chan_a);
+    channel_config_set_transfer_data_size(&c_a, DMA_SIZE_32);
+    channel_config_set_read_increment(&c_a, false);
+    channel_config_set_write_increment(&c_a, true);
+    channel_config_set_dreq(&c_a, pio_get_dreq(pio, sm, false));
+    channel_config_set_chain_to(&c_a, dma_chan_b);
+    dma_channel_configure(dma_chan_a, &c_a, i2s_mic->buffer_ping, &pio->rxf[sm], i2s_mic->buffer_size, false);
 
-    i2s_dma_channel = i2s_config->dma_channel;
+    // Config Chan B
+    dma_channel_config c_b = dma_channel_get_default_config(dma_chan_b);
+    channel_config_set_transfer_data_size(&c_b, DMA_SIZE_32);
+    channel_config_set_read_increment(&c_b, false);
+    channel_config_set_write_increment(&c_b, true);
+    channel_config_set_dreq(&c_b, pio_get_dreq(pio, sm, false));
+    channel_config_set_chain_to(&c_b, dma_chan_a);
+    dma_channel_configure(dma_chan_b, &c_b, i2s_mic->buffer_pong, &pio->rxf[sm], i2s_mic->buffer_size, false);
+
+    dma_channel_start(dma_chan_a);
     LOGI("I2S NEMS MIC Initialization done.");
-}
-
-void i2s_loop(i2s_mic_conf_t *i2s_config) {
-
-    // 3. Boucle principale
-    while (true) {
-        if (i2s_config->buffer_ready) {
-            for (int i = 0; i < i2s_config->buffer_size; i++) {
-                if (i % 2 == 0) {
-                    i2s_config->dma_buffer.data[i] = apply_filter_and_gain(&filter_L, i2s_config->dma_buffer.data[i]);
-                } else {
-                    i2s_config->dma_buffer.data[i] = apply_filter_and_gain(&filter_R, i2s_config->dma_buffer.data[i]);
-                }
-            }
-            i2s_config->buffer_ready = false;
-            // Ici, vous pouvez envoyer dma_buffer vers USB ou SD
-            printf("Traitement terminé sur un buffer\n");
-
-            // Relancer le DMA pour le prochain tour
-            dma_channel_set_write_addr(i2s_config->dma_channel, i2s_config->dma_buffer.data, true);
-        }
-    }
 }
