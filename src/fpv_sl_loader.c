@@ -80,8 +80,8 @@ int main() {
                         if (is_config_loaded) {
 
                             // Initialize I2S nems mic
-                            i2s_mic_conf_t i2s_mic_conf = {.sample_rate = conf->sample_rate,
-                                                           .is_mono_rcd = conf->is_mono_rcd};
+                            i2s_mic_t i2s_mic_conf = {.sample_rate = conf->sample_rate,
+                                                           .is_mono = conf->is_mono_rcd};
                             init_i2s_mic(&i2s_mic_conf);
 
                             // Initialize Flight Controller interface inputs

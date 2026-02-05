@@ -19,13 +19,16 @@
 typedef struct {
     uint32_t sample_rate;
     bool is_mono;
+    uint32_t buffer_size;
     int32_t *buffer_ping;
     int32_t *buffer_pong;
-    uint32_t buffer_size;
+    int8_t dma_chan_ping;
+    int8_t dma_chan_pong;
+    int8_t buffer_to_process;
     volatile bool data_ready;
     int32_t *active_buffer_ptr;
     uint32_t current_data_count;
 } i2s_mic_t;
 
-void i2s_mic_init(i2s_mic_t *config);
+void init_i2s_mic(i2s_mic_t *config);
 void i2s_mic_start();
