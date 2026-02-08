@@ -85,7 +85,7 @@ int main() {
                             init_i2s_mic(&i2s_mic_conf);
 
                             // Initialize Flight Controller interface inputs
-                            initialize_gpio_interface(start_i2s_mic_rcd, start_i2s_mic_rcd);
+                            initialize_gpio_interface(i2s_mic_start, i2s_mic_stop);
 
                             // Setup the next record file
 

@@ -18,7 +18,7 @@ uint8_t compute_execution_condition(fpv_sl_conf_t *fpv_sl_conf) {
         return -1;
 }
 
-void fpv_sl_core_loop(void) {
+void fpv_sl_core0_loop(void) {
     switch (execution_condition) {
     case CLASSIC_TYPE:
         // Setup temporary file to write

@@ -22,13 +22,15 @@ typedef struct {
     uint32_t buffer_size;
     int32_t *buffer_ping;
     int32_t *buffer_pong;
-    int8_t dma_chan_ping;
-    int8_t dma_chan_pong;
-    int8_t buffer_to_process;
+    uint8_t dma_chan_ping;
+    uint8_t dma_chan_pong;
+    volatile bool is_ping_buffer_ready;
+    volatile bool is_pong_buffer_ready;
     volatile bool data_ready;
     int32_t *active_buffer_ptr;
     uint32_t current_data_count;
 } i2s_mic_t;
 
 void init_i2s_mic(i2s_mic_t *config);
-void i2s_mic_start();
+int8_t i2s_mic_start(void);
+int8_t i2s_mic_stop(void);
