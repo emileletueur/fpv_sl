@@ -16,18 +16,28 @@ static bool is_i2s_started = false;
 PIO pio = pio0;
 uint sm = 0;
 
+bool is_data_ready(void){
+    return i2s_mic->data_ready;
+}
+
+volatile int32_t* get_active_buffer_ptr(void){
+    return i2s_mic->active_buffer_ptr;
+}
+
+uint32_t get_current_data_count(void){
+    return i2s_mic->current_data_count;
+}
+
 void dma_handler() {
     uint irq0_status = dma_hw->ints0;
     if (irq0_status & (1u << i2s_mic->dma_chan_ping)) {
         dma_hw->ints0 = (1u << i2s_mic->dma_chan_ping);
-        i2s_mic->is_ping_buffer_ready = true;
         i2s_mic->active_buffer_ptr = i2s_mic->buffer_ping;
         i2s_mic->current_data_count = i2s_mic->buffer_size;
         i2s_mic->data_ready = true;
     }
     if (irq0_status & (1u << i2s_mic->dma_chan_pong)) {
         dma_hw->ints0 = (1u << i2s_mic->dma_chan_pong);
-        i2s_mic->is_pong_buffer_ready = true;
         i2s_mic->active_buffer_ptr = i2s_mic->buffer_pong;
         i2s_mic->current_data_count = i2s_mic->buffer_size;
         i2s_mic->data_ready = true;
@@ -69,8 +79,6 @@ int8_t i2s_mic_stop(void) {
 void init_i2s_mic(i2s_mic_t *i2s_mic_config) {
     i2s_mic = i2s_mic_config;
 
-    i2s_mic->is_ping_buffer_ready = false;
-    i2s_mic->is_pong_buffer_ready = false;
     i2s_mic->data_ready = false;
     i2s_mic->active_buffer_ptr = NULL;
     i2s_mic->current_data_count = 0;

@@ -8,4 +8,7 @@ target_include_directories(fpv_sl_core PUBLIC
 
 target_link_libraries(fpv_sl_core PUBLIC
     fpv_sl_config
+    audio_buffer
+    sdio
+    i2s_mic
 )

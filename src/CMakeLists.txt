@@ -48,6 +48,7 @@ add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
 add_subdirectory(modules)
 add_subdirectory(modules/gpio)
 add_subdirectory(modules/sdio)
+add_subdirectory(modules/audio_buffer)
 add_subdirectory(utils)
 add_subdirectory(config)
 add_subdirectory(drivers/ws2812)
@@ -85,6 +86,7 @@ target_link_libraries(fpv_sl_loader
         utils
         gpio
         sdio
+        audio_buffer
         ws2812
         i2s_mic
         status_indicator

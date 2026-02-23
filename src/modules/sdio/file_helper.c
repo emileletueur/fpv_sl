@@ -65,6 +65,8 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_HIGH_PASS_CUTOFF_FREQ;
     if (strcmp(key, SAMPLE_RATE) == 0)
         return KEY_SAMPLE_RATE;
+    if (strcmp(key, BUFFER_SIZE) == 0)
+        return KEY_BUFFER_SIZE;
     if (strcmp(key, IS_MONO_RCD) == 0)
         return KEY_IS_MONO_RCD;
     if (strcmp(key, NEXT_FILE_NAME_INDEX) == 0)
@@ -133,7 +135,7 @@ const char *get_fresult_str(FRESULT res) {
     }
 }
 
-uint8_t read_conf_file(void) {
+int8_t read_conf_file(void) {
     FRESULT f_result;
     char line[64];
 
@@ -173,6 +175,9 @@ uint8_t read_conf_file(void) {
         case KEY_SAMPLE_RATE:
             fpv_sl_config.sample_rate = parse_uint16(conf_item.value);
             break;
+        case KEY_BUFFER_SIZE:
+            fpv_sl_config.buffer_size = parse_uint16(conf_item.value);
+            break;
         case KEY_IS_MONO_RCD:
             fpv_sl_config.is_mono_rcd = parse_uint16(conf_item.value);
             break;
@@ -204,7 +209,7 @@ uint8_t read_conf_file(void) {
     return 0;
 }
 
-uint8_t create_wav_file(void) {
+int8_t create_wav_file(void) {
     if (!fpv_sl_config.conf_is_loaded)
         return -1;
     char file_path[64];
@@ -217,7 +222,7 @@ uint8_t create_wav_file(void) {
     return 0;
 }
 
-uint8_t finalize_wav_file(uint32_t rcd_duration) {
+int8_t finalize_wav_file(uint32_t rcd_duration) {
     FRESULT f_result;
     f_result = f_close(&file_p);
     if (f_result != FR_OK) {
@@ -246,7 +251,7 @@ uint8_t finalize_wav_file(uint32_t rcd_duration) {
     return 0;
 }
 
-uint8_t append_wav_header(uint32_t data_size) {
+int8_t append_wav_header(uint32_t data_size) {
     FRESULT f_result;
     UINT bytes_written;
     wav_header_t header = {.riff_header = {'R', 'I', 'F', 'F'},
@@ -266,14 +271,29 @@ uint8_t append_wav_header(uint32_t data_size) {
     f_result = f_lseek(&file_p, 0);
     if (f_result != FR_OK || bytes_written != sizeof(header)) {
         // Gestion d'erreur
-        LOGI("Err while seek 0 the file : %d", f_result);
+        LOGE("Err while seek 0 the file : %d", f_result);
+        return -1;
     }
 
     f_result = f_write(&file_p, &header, sizeof(header), &bytes_written);
     if (f_result != FR_OK || bytes_written != sizeof(header)) {
         // Gestion d'erreur
-        LOGI("Err while write header : %d", f_result);
+        LOGE("Err while write header : %d", f_result);
+        return -1;
     }
 
+    return 0;
+}
+
+int8_t write_buffer(uint32_t *buff) {
+    FRESULT f_result;
+    UINT bytes_written;
+
+    f_write(&file_p, buff, sizeof(buff), &bytes_written);
+    if (f_result != FR_OK || bytes_written != sizeof(buff)) {
+        // Gestion d'erreur
+        LOGE("Err while write data buffer : %d", f_result);
+        return -1;
+    }
     return 0;
 }

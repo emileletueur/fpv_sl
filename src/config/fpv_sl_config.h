@@ -12,6 +12,7 @@
 #define USE_HIGH_PASS_FILTER "USE_HIGH_PASS_FILTER"
 #define HIGH_PASS_CUTOFF_FREQ "HIGH_PASS_CUTOFF_FREQ"
 #define SAMPLE_RATE "SAMPLE_RATE"
+#define BUFFER_SIZE "BUFFER_SIZE"
 #define IS_MONO_RCD "IS_MONO_RCD"
 #define NEXT_FILE_NAME_INDEX "NEXT_FILE_NAME_INDEX"
 #define RCD_FOLDER "RCD_FOLDER"
@@ -33,6 +34,7 @@ typedef enum {
     KEY_USE_HIGH_PASS_FILTER,
     KEY_HIGH_PASS_CUTOFF_FREQ,
     KEY_SAMPLE_RATE,
+    KEY_BUFFER_SIZE,
     KEY_IS_MONO_RCD,
     KEY_NEXT_FILE_NAME_INDEX,
     KEY_RCD_FOLDER,
@@ -48,6 +50,7 @@ typedef struct {
     bool use_high_pass_filter;     // use the low pass filter
     uint8_t high_pass_cutoff_freq; // the cutoff frequency of numeric low pass filter
     uint16_t sample_rate;          // i2s rcd sample rate
+    uint16_t buffer_size;          // i2s buffer size
     bool is_mono_rcd;          // i2s rcd sample rate
     uint16_t next_file_name_index; // the index used in file name to ensure unicity
     char *rcd_folder;

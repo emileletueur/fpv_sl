@@ -2,10 +2,12 @@
 #include "config/fpv_sl_config.h"
 #include "debug_log.h"
 // #include "modules/sdio/sd_spi_hw_config.h"
+#include "fpv_sl_core.h"
 #include "i2s_mic.h"
 #include "modules/gpio/gpio_interface.h"
 #include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
+#include "pico/multicore.h"
 #include "status_indicator.h"
 #include "tusb.h"
 #include "usb/msc_disk.h"
@@ -80,16 +82,18 @@ int main() {
                         if (is_config_loaded) {
 
                             // Initialize I2S nems mic
-                            i2s_mic_t i2s_mic_conf = {.sample_rate = conf->sample_rate,
-                                                           .is_mono = conf->is_mono_rcd};
+                            i2s_mic_t i2s_mic_conf = {
+                                .sample_rate = conf->sample_rate, .is_mono = conf->is_mono_rcd, .buffer_size = 2048};
                             init_i2s_mic(&i2s_mic_conf);
 
                             // Initialize Flight Controller interface inputs
                             initialize_gpio_interface(i2s_mic_start, i2s_mic_stop);
 
-                            // Setup the next record file
+                            // Determine execution mode
+                            get_mode_from_config(conf);
 
                             // Record main loop
+                            fpv_sl_process_mode();
                         }
                     }
                 }
@@ -101,17 +105,7 @@ int main() {
         tud_disconnect();
         sleep_ms(100);
         while (1) {
-            // Votre code de record sans USB
-            // if (tud_cdc_available()) {
-            //     LOGI("tud_cdc_available\r\n");
-            //     if (!config_readed) {
-            //         LOGI("Read config file !\r\n");
-            //         read_conf_file();
-            //         config_readed = true;
-            //     }
-            // }
-
-            tight_loop_contents();
+            // fpv_sl_process_mode(&conf);
         }
     }
 }

@@ -24,13 +24,14 @@ typedef struct {
     int32_t *buffer_pong;
     uint8_t dma_chan_ping;
     uint8_t dma_chan_pong;
-    volatile bool is_ping_buffer_ready;
-    volatile bool is_pong_buffer_ready;
     volatile bool data_ready;
-    int32_t *active_buffer_ptr;
-    uint32_t current_data_count;
+    volatile int32_t *active_buffer_ptr;
+    volatile uint32_t current_data_count;
 } i2s_mic_t;
 
+bool is_data_ready(void);
+volatile int32_t* get_active_buffer_ptr(void);
+uint32_t get_current_data_count(void);
 void init_i2s_mic(i2s_mic_t *config);
 int8_t i2s_mic_start(void);
 int8_t i2s_mic_stop(void);
