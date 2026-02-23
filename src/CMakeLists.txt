@@ -33,6 +33,17 @@ project(fpv_sl_loader C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
+# ── Debug option: Pi Pico classique avec LED onboard (probe debugging) ───────
+# Active USE_PICO_ONBOARD_LED dans status_indicator pour utiliser la LED GP25
+# au lieu du RGB WS2812. Désactivé par défaut (build production).
+#
+# Usage: cmake -DFPV_SL_PICO_PROBE_DEBUG=ON ...
+option(FPV_SL_PICO_PROBE_DEBUG "Debug avec Pi Pico standard (LED onboard GP25 au lieu de WS2812)" OFF)
+if(FPV_SL_PICO_PROBE_DEBUG)
+    message(STATUS "FPV_SL: mode debug probe — LED onboard (USE_PICO_ONBOARD_LED)")
+    add_compile_definitions(USE_PICO_ONBOARD_LED)
+endif()
+
 add_library(fpv_sl_logging INTERFACE)
 target_compile_definitions(fpv_sl_logging INTERFACE
     DEBUG_LOG_ENABLE
