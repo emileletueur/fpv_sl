@@ -171,20 +171,14 @@ Expected output:
   fpv_sl — on-target test runner
 ═══════════════════════════════════════════════
 ── GPIO interface tests ──────────────────────
-[PASS] test_enable_callback_called
-[PASS] test_record_callback_called
-[PASS] test_no_retrigger_when_already_high
-[PASS] test_second_rising_edge_triggers_again
-[PASS] test_sequence_enable_then_record
-[PASS] test_null_callbacks_no_crash
-── Recording mode tests ──────────────────────
-[PASS] test_conf_not_loaded_returns_error
-[PASS] test_mode_always_rcd
-[PASS] test_mode_rcd_only
-[PASS] test_mode_classic
-[PASS] test_always_rcd_overrides_enable_pin
+[INF] [PASS] test_enable_callback_called
+[INF] [PASS] test_record_callback_called
+[INF] [PASS] test_no_retrigger_when_already_high
+[INF] [PASS] test_second_rising_edge_triggers_again
+[INF] [PASS] test_sequence_enable_then_record
+[INF] [PASS] test_null_callbacks_no_crash
 ───────────────────────────────────────────────
-RESULT : 11 / 11 PASS  ✓
+[INF] RESULT : 6 / 6 PASS  ✓
 ═══════════════════════════════════════════════
 ```
 
@@ -204,7 +198,8 @@ A failing test prints the assertion and its location:
 | Suite | File | Key scenarios |
 |---|---|---|
 | GPIO interface | `test_gpio_interface.c` | Rising edge triggers callback, no retrigger on stable HIGH, sequence ENABLE→RECORD, NULL callbacks |
-| Recording mode | `test_recording_mode.c` | Config not loaded returns error, ALWAYS/RCD_ONLY/CLASSIC mode selection, `always_rcd` priority |
+
+> Recording mode logic (pure config dispatch, no hardware) is covered by host tests.
 
 ### Adding an on-target test
 
