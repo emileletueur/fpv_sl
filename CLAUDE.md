@@ -176,3 +176,6 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
 - [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.
+- [ ] **Filtre passe-bas + passe-bande** — ajouter un filtre passe-bas IIR symétrique au passe-haut existant (`process_sample`) pour obtenir un passe-bande configurable (ex. 200 Hz – 8 kHz). Fréquence de coupure haute à exposer dans `default.conf`.
+- [ ] **Gain automatique (AGC)** — étudier un contrôle automatique de gain pour normaliser le niveau du signal selon l'amplitude mesurée sur fenêtre glissante.
+- [ ] **Logging FC via UART DMA** — évaluer la faisabilité d'une capture UART depuis le FC (télémétrie / MSP) par DMA pour corréler les logs de vol avec l'audio.
