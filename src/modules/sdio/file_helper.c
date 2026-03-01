@@ -16,7 +16,9 @@
 FATFS fatfs_mount_p;
 FIL file_p;
 
-static fpv_sl_conf_t fpv_sl_config = {.conf_is_loaded = false};
+static fpv_sl_conf_t fpv_sl_config  = {.conf_is_loaded = false};
+static char          s_rcd_folder[64]    = {0};
+static char          s_rcd_file_name[64] = {0};
 
 key_value_pair_t parse_conf_key_value(char *line) {
     key_value_pair_t result = {0};
@@ -135,6 +137,77 @@ const char *get_fresult_str(FRESULT res) {
     }
 }
 
+/* Construit le chemin final du fichier WAV : "0:/<rcd_folder><rcd_file_name><index>.wav" */
+static void build_final_file_path(char *out, size_t out_size) {
+    snprintf(out, out_size, "0:/%s%s%u.wav",
+             fpv_sl_config.rcd_folder    ? fpv_sl_config.rcd_folder    : "",
+             fpv_sl_config.rcd_file_name ? fpv_sl_config.rcd_file_name : "rec",
+             fpv_sl_config.next_file_name_index);
+}
+
+/* Relit default.conf, remplace la ligne NEXT_FILE_NAME_INDEX et réécrit le fichier. */
+static int8_t update_next_file_index_in_conf(uint16_t new_index) {
+    char read_buf[512];
+    char write_buf[512];
+    UINT br;
+
+    LOGI("Updating %s to %u in conf.", NEXT_FILE_NAME_INDEX, new_index);
+
+    FRESULT fr = f_open(&file_p, CONFIG_FILE_PATH, FA_READ);
+    if (fr != FR_OK) {
+        LOGE("update_index: open failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    fr = f_read(&file_p, read_buf, sizeof(read_buf) - 1, &br);
+    f_close(&file_p);
+    if (fr != FR_OK) {
+        LOGE("update_index: read failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    read_buf[br] = '\0';
+
+    /* Localise la ligne NEXT_FILE_NAME_INDEX et remplace la valeur. */
+    const char *prefix = NEXT_FILE_NAME_INDEX " ";
+    char *pos = strstr(read_buf, prefix);
+    if (pos == NULL) {
+        LOGE("update_index: key not found in conf.");
+        return -1;
+    }
+    char *eol       = strchr(pos, '\n');
+    size_t before   = (size_t)(pos - read_buf);
+    char new_line[32];
+    int  nl_len     = snprintf(new_line, sizeof(new_line), "%s%u", prefix, new_index);
+    if (nl_len < 0) return -1;
+    size_t after_off = eol ? (size_t)(eol - read_buf) : (size_t)br;
+    size_t after_len = (size_t)br - after_off;
+    size_t total     = before + (size_t)nl_len + after_len;
+    if (total >= sizeof(write_buf)) {
+        LOGE("update_index: buffer overflow.");
+        return -1;
+    }
+    memcpy(write_buf,                          read_buf,        before);
+    memcpy(write_buf + before,                 new_line,        (size_t)nl_len);
+    memcpy(write_buf + before + (size_t)nl_len, read_buf + after_off, after_len);
+    write_buf[total] = '\0';
+
+    fr = f_open(&file_p, CONFIG_FILE_PATH, FA_CREATE_ALWAYS | FA_WRITE);
+    if (fr != FR_OK) {
+        LOGE("update_index: write open failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    UINT bw;
+    fr = f_write(&file_p, write_buf, total, &bw);
+    f_close(&file_p);
+    if (fr != FR_OK || bw != (UINT)total) {
+        LOGE("update_index: write failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    fpv_sl_config.next_file_name_index = new_index;
+    LOGI("Index updated to %u.", new_index);
+    return 0;
+}
+
 int8_t read_conf_file(void) {
     FRESULT f_result;
     char line[64];
@@ -185,10 +258,12 @@ int8_t read_conf_file(void) {
             fpv_sl_config.next_file_name_index = parse_uint16(conf_item.value);
             break;
         case KEY_RCD_FOLDER:
-            fpv_sl_config.rcd_folder = conf_item.value;
+            strncpy(s_rcd_folder, conf_item.value, sizeof(s_rcd_folder) - 1);
+            fpv_sl_config.rcd_folder = s_rcd_folder;
             break;
         case KEY_RCD_FILE_NAME:
-            fpv_sl_config.rcd_file_name = conf_item.value;
+            strncpy(s_rcd_file_name, conf_item.value, sizeof(s_rcd_file_name) - 1);
+            fpv_sl_config.rcd_file_name = s_rcd_file_name;
             break;
         case KEY_DEL_ON_MULTIPLE_ENABLE_TICK:
             fpv_sl_config.delete_on_multiple_enable_tick = parse_bool(conf_item.value);
@@ -224,30 +299,67 @@ int8_t create_wav_file(void) {
 
 int8_t finalize_wav_file(uint32_t rcd_duration) {
     FRESULT f_result;
+
+    /* 1. Calcul de la taille réelle des données audio. */
+    FSIZE_t file_size       = f_size(&file_p);
+    uint32_t data_bytes_real = (file_size > sizeof(wav_header_t))
+                                   ? (uint32_t)(file_size - sizeof(wav_header_t))
+                                   : 0;
+    LOGI("Finalising WAV: %lu bytes of audio, duration %lums.", data_bytes_real, rcd_duration);
+
+    /* 2. Réécriture du header avec les vraies tailles. */
+    wav_header_t header = {.riff_header     = {'R', 'I', 'F', 'F'},
+                           .wave_header     = {'W', 'A', 'V', 'E'},
+                           .fmt_header      = {'f', 'm', 't', ' '},
+                           .data_header     = {'D', 'A', 'T', 'A'},
+                           .fmt_chunk_size  = 16,
+                           .audio_format    = 1,
+                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .sample_rate     = fpv_sl_config.sample_rate,
+                           .bits_per_sample = 16,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .wav_size        = 36 + data_bytes_real,
+                           .data_bytes      = data_bytes_real};
+
+    f_result = f_lseek(&file_p, 0);
+    if (f_result != FR_OK) {
+        LOGE("Finalise: seek failed: %d (%s).", f_result, get_fresult_str(f_result));
+        return -1;
+    }
+    UINT bw;
+    f_result = f_write(&file_p, &header, sizeof(header), &bw);
+    if (f_result != FR_OK || bw != sizeof(header)) {
+        LOGE("Finalise: header rewrite failed: %d (%s).", f_result, get_fresult_str(f_result));
+        return -1;
+    }
+
+    /* 3. Fermeture. */
     f_result = f_close(&file_p);
     if (f_result != FR_OK) {
-        LOGI("Close wav file err: %d.", f_result);
+        LOGE("Finalise: close failed: %d (%s).", f_result, get_fresult_str(f_result));
     } else {
-        LOGI("WAV file finalised succesfully.");
+        LOGI("WAV file closed.");
     }
 
-    char original_file_path_name[64];
-    char final_file_path_name[64];
-    char time_str[6];
-    uint32_t seconds = rcd_duration / 1000;
-    uint32_t minutes = seconds / 60;
-    seconds %= 60;
-
-    snprintf(time_str, 6, "%02u-%02u", minutes, seconds);
-
-    snprintf(original_file_path_name, sizeof(original_file_path_name), "0:/%s", TEMPORARY_FILE_NAME);
-    snprintf(final_file_path_name, sizeof(final_file_path_name), "0:/%s%s", fpv_sl_config.rcd_folder, time_str);
-    f_result = f_rename(original_file_path_name, final_file_path_name);
+    /* 4. Renommage avec l'index courant. */
+    char src_path[64];
+    char dst_path[64];
+    snprintf(src_path, sizeof(src_path), "0:/%s", TEMPORARY_FILE_NAME);
+    build_final_file_path(dst_path, sizeof(dst_path));
+    LOGI("Renaming to %s.", dst_path);
+    f_result = f_rename(src_path, dst_path);
     if (f_result != FR_OK) {
-        LOGI("Move wav file err: %d.", f_result);
-    } else {
-        LOGI("WAV file moved in destination folder succesfully.");
+        LOGE("Finalise: rename failed: %d (%s).", f_result, get_fresult_str(f_result));
+        return -1;
     }
+
+    /* 5. Incrément de l'index dans la conf. */
+    if (update_next_file_index_in_conf(fpv_sl_config.next_file_name_index + 1) != 0) {
+        LOGW("Finalise: index update failed.");
+    }
+
+    LOGI("Recording finalised.");
     return 0;
 }
 
@@ -282,6 +394,92 @@ int8_t append_wav_header(uint32_t data_size) {
         return -1;
     }
 
+    return 0;
+}
+
+int8_t recover_unfinalized_recording(void) {
+    char tmp_path[64];
+    snprintf(tmp_path, sizeof(tmp_path), "0:/%s", TEMPORARY_FILE_NAME);
+
+    LOGI("Checking for unfinalized recording.");
+    FILINFO finfo;
+    FRESULT fr = f_stat(tmp_path, &finfo);
+    if (fr != FR_OK) {
+        LOGI("No unfinalized recording found.");
+        return 0;
+    }
+
+    LOGI("Unfinalized recording found (%lu bytes). Recovering.", (unsigned long)finfo.fsize);
+
+    fr = f_open(&file_p, tmp_path, FA_READ | FA_WRITE);
+    if (fr != FR_OK) {
+        LOGE("recover: open failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    FSIZE_t file_size        = f_size(&file_p);
+    uint32_t data_bytes_real = (file_size > sizeof(wav_header_t))
+                                   ? (uint32_t)(file_size - sizeof(wav_header_t))
+                                   : 0;
+
+    wav_header_t header = {.riff_header     = {'R', 'I', 'F', 'F'},
+                           .wave_header     = {'W', 'A', 'V', 'E'},
+                           .fmt_header      = {'f', 'm', 't', ' '},
+                           .data_header     = {'D', 'A', 'T', 'A'},
+                           .fmt_chunk_size  = 16,
+                           .audio_format    = 1,
+                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .sample_rate     = fpv_sl_config.sample_rate,
+                           .bits_per_sample = 16,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .wav_size        = 36 + data_bytes_real,
+                           .data_bytes      = data_bytes_real};
+
+    fr = f_lseek(&file_p, 0);
+    if (fr != FR_OK) {
+        LOGE("recover: seek failed: %d (%s).", fr, get_fresult_str(fr));
+        f_close(&file_p);
+        return -1;
+    }
+    UINT bw;
+    fr = f_write(&file_p, &header, sizeof(header), &bw);
+    if (fr != FR_OK || bw != sizeof(header)) {
+        LOGE("recover: header rewrite failed: %d (%s).", fr, get_fresult_str(fr));
+        f_close(&file_p);
+        return -1;
+    }
+
+    fr = f_close(&file_p);
+    if (fr != FR_OK) {
+        LOGE("recover: close failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    char dst_path[64];
+    build_final_file_path(dst_path, sizeof(dst_path));
+    LOGI("Renaming recovered file to %s.", dst_path);
+    fr = f_rename(tmp_path, dst_path);
+    if (fr != FR_OK) {
+        LOGE("recover: rename failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    if (update_next_file_index_in_conf(fpv_sl_config.next_file_name_index + 1) != 0) {
+        LOGW("recover: index update failed.");
+    }
+
+    LOGI("Recovery complete: %lu bytes of audio data.", (unsigned long)data_bytes_real);
+    return 0;
+}
+
+int8_t sync_wav_file(void) {
+    FRESULT fr = f_sync(&file_p);
+    if (fr != FR_OK) {
+        LOGE("sync: f_sync failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    LOGD("WAV file synced.");
     return 0;
 }
 

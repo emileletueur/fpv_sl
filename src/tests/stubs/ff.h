@@ -73,3 +73,19 @@ static inline FRESULT f_rename(const char *old_name, const char *new_name)
 /* f_getfree : implémentation fournie par fatfs_getfree_stub.c dans les tests
    qui en ont besoin (test_disk_usage). */
 FRESULT f_getfree(const char *path, DWORD *nclst, FATFS **fatfs);
+
+/* Métadonnées de fichier — seul fsize est utilisé dans ce projet. */
+typedef DWORD FSIZE_t;
+typedef struct {
+    FSIZE_t fsize;
+    char    fname[13];
+} FILINFO;
+
+/* f_stat : retourne FR_NO_FILE dans les tests (pas de fichier temporaire). */
+static inline FRESULT f_stat(const char *path, FILINFO *fno)
+    { (void)path; if (fno) { fno->fsize = 0; fno->fname[0] = '\0'; } return FR_NO_FILE; }
+
+/* f_size : retourne 0 dans les tests. */
+static inline FSIZE_t f_size(FIL *fp) { (void)fp; return 0; }
+
+static inline FRESULT f_sync(FIL *fp) { (void)fp; return FR_OK; }

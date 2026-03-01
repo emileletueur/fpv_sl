@@ -14,14 +14,8 @@
 #include "usb/tusb_config.h"
 
 #define USB_ENUM_TIMEOUT_MS 3000
-#define USB_CDC_READY_MS 5000
-
-bool is_config_loaded = false;
 
 void process_msc_activity(void) {
-    // Check of MSC activity
-    bool is_busy = tud_msc_is_busy();
-
     if (tud_msc_is_busy()) {
         set_usb_msc_transer_status();
     } else {
@@ -51,7 +45,14 @@ int main() {
     set_module_powered_status();
     sleep_ms(500);
 
-    // wait for device enumeration with timeout
+    // Load config and recover any unfinalized recording (before USB/non-USB split)
+    // so that recovered files are visible via MSC if USB is detected.
+    if (read_conf_file() == 0) {
+        recover_unfinalized_recording();
+    }
+    const fpv_sl_conf_t *conf = get_conf();
+
+    // wait for USB enumeration with timeout
     bool is_device_enumerated = false;
     uint32_t start_time = to_ms_since_boot(get_absolute_time());
 
@@ -65,47 +66,36 @@ int main() {
 
     if (is_device_enumerated) {
         LOGI("USB init OK.");
+        // Unmount FatFS before MSC takes over SD card sector access.
+        f_mount(NULL, "0:", 0);
         set_usb_msc_status();
-
-        // main usb loop
         while (1) {
             tud_task();
             process_msc_activity();
-            if (tud_cdc_available()) {
-                if (to_ms_since_boot(get_absolute_time()) - start_time > USB_CDC_READY_MS) {
-
-                    // Load main config file
-                    if (!is_config_loaded) {
-                        read_conf_file();
-                        const fpv_sl_conf_t *conf = get_conf();
-                        is_config_loaded = conf->conf_is_loaded;
-                        if (is_config_loaded) {
-
-                            // Initialize I2S nems mic
-                            i2s_mic_t i2s_mic_conf = {
-                                .sample_rate = conf->sample_rate, .is_mono = conf->is_mono_rcd, .buffer_size = 2048};
-                            init_i2s_mic(&i2s_mic_conf);
-
-                            // Initialize Flight Controller interface inputs
-                            initialize_gpio_interface(i2s_mic_start, i2s_mic_stop);
-
-                            // Determine execution mode
-                            get_mode_from_config(conf);
-
-                            // Record main loop
-                            fpv_sl_process_mode();
-                        }
-                    }
-                }
-            }
         }
     } else {
-        LOGI("USB timeout.");
-        // run main record loop
+        LOGI("USB timeout — recording mode.");
         tud_disconnect();
         sleep_ms(100);
+
+        if (conf->conf_is_loaded) {
+            // Initialize I2S MEMS mic
+            i2s_mic_t i2s_mic_conf = {
+                .sample_rate = conf->sample_rate, .is_mono = conf->is_mono_rcd, .buffer_size = 2048};
+            init_i2s_mic(&i2s_mic_conf);
+
+            // Initialize Flight Controller GPIO interface
+            initialize_gpio_interface(i2s_mic_start, i2s_mic_stop);
+
+            // Determine execution mode and start recording
+            get_mode_from_config(conf);
+            fpv_sl_process_mode();
+        } else {
+            LOGE("Config not loaded — cannot start recording.");
+        }
+
         while (1) {
-            // fpv_sl_process_mode(&conf);
+            tight_loop_contents();
         }
     }
 }
