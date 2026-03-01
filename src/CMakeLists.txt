@@ -104,3 +104,11 @@ target_link_libraries(fpv_sl_loader
 )
 
 pico_add_extra_outputs(fpv_sl_loader)
+
+# ── On-target test runner (firmware séparé) ───────────────────────────────
+# Usage: cmake -DFPV_SL_BUILD_TARGET_TESTS=ON -S src -B src/build -G Ninja
+option(FPV_SL_BUILD_TARGET_TESTS "Build on-target test runner firmware (.uf2)" OFF)
+if(FPV_SL_BUILD_TARGET_TESTS)
+    message(STATUS "FPV_SL: on-target tests activés — cible fpv_sl_test_runner")
+    add_subdirectory(tests/target)
+endif()

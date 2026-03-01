@@ -1,6 +1,7 @@
 #include "gpio_interface.h"
 #include "debug_log.h"
 #include <hardware/gpio.h>
+#include <pico/time.h>
 
 static gpio_trigger_callback_t enable_or_delete_trigger_function = NULL;
 static gpio_trigger_callback_t i2s_dma_trigger_function = NULL;
@@ -27,4 +28,25 @@ void initialize_gpio_interface(gpio_trigger_callback_t enable_callback, gpio_tri
     i2s_dma_trigger_function = record_callback;
     gpio_set_irq_enabled_with_callback(PIN_FC_ENABLE_PIN, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
     gpio_set_irq_enabled_with_callback(PIN_FC_RECORD_PIN, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
-};
+
+#ifdef USE_PICO_ONBOARD_LED
+    // Initialise les sorties simulateur FC (GP8 → GP2, GP9 → GP3)
+    gpio_init(PIN_FC_SIM_ENABLE);
+    gpio_set_dir(PIN_FC_SIM_ENABLE, GPIO_OUT);
+    gpio_put(PIN_FC_SIM_ENABLE, 0);
+
+    gpio_init(PIN_FC_SIM_RECORD);
+    gpio_set_dir(PIN_FC_SIM_RECORD, GPIO_OUT);
+    gpio_put(PIN_FC_SIM_RECORD, 0);
+#endif
+}
+
+#ifdef USE_PICO_ONBOARD_LED
+void gpio_sim_set_enable(bool active) {
+    gpio_put(PIN_FC_SIM_ENABLE, active ? 1 : 0);
+}
+
+void gpio_sim_set_record(bool active) {
+    gpio_put(PIN_FC_SIM_RECORD, active ? 1 : 0);
+}
+#endif
