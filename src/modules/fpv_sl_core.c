@@ -14,6 +14,10 @@ static const fpv_sl_conf_t *fpv_sl_conf = NULL;
 hp_filter_t filter_L = {0.959f, 0, 0}; // Alpha pour ~300Hz à 44.1kHz
 static execution_condition_t execution_condition;
 
+/* Nombre de blocs audio écrits entre deux f_sync().
+   256 samples/bloc à 44180 Hz → 1 bloc ≈ 5.8 ms → 64 blocs ≈ 370 ms. */
+#define SYNC_PERIOD_BLOCKS 64
+
 // ─────────────────────────────────────────────
 // Pipeline partagé entre les cores
 // ─────────────────────────────────────────────
@@ -105,33 +109,28 @@ int32_t process_sample(hp_filter_t *f, int32_t sample) {
 }
 
 void fpv_sl_core0_loop(void) {
-    // Start the core 1
     multicore_launch_core1(fpv_sl_core1_loop);
 
-    // is buffer filled and ready
-    if (is_data_ready()) {
-        // Provide buffer address to core 1
-        multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
-        // wait for data compute finished
-        uint32_t filtered_buffer = multicore_fifo_pop_blocking();
-        // write the sound data to sd
-        write_buffer(&filtered_buffer);
+    uint32_t blocks_since_sync = 0;
+
+    while (g_recording) {
+        if (!is_data_ready()) {
+            continue;
+        }
+
+        // Envoyer le bloc au Core 1 pour filtrage
+        multicore_fifo_push_blocking((uint32_t)get_active_buffer_ptr());
+        // Récupérer l'adresse du bloc filtré
+        uint32_t filtered_addr = multicore_fifo_pop_blocking();
+        // Écrire sur SD
+        write_buffer((uint32_t *)filtered_addr);
+
+        blocks_since_sync++;
+        if (blocks_since_sync >= SYNC_PERIOD_BLOCKS) {
+            sync_wav_file();
+            blocks_since_sync = 0;
+        }
     }
-
-    // if (buffer_to_process != -1) {
-    //     int32_t *buf_addr = (buffer_to_process == 0) ? buffer_A : buffer_B;
-    //     buffer_to_process = -1; // Reset flag
-
-    //     // 1. Envoyer le buffer au coeur 1 pour filtrage
-    //     multicore_fifo_push_blocking((uint32_t) buf_addr);
-
-    //     // 2. Attendre que le coeur 1 ait fini le filtrage
-    //     uint32_t filtered_buffer = multicore_fifo_pop_blocking();
-
-    //     // 3. Écrire le buffer filtré sur la carte SD
-    //     // C'est ici que ça peut prendre du temps (FatFs f_write)
-    //     write_to_sd((int32_t *) filtered_buffer, BUFFER_SIZE);
-    // }
 }
 
 void fpv_sl_core1_loop(void) {
