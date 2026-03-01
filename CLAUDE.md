@@ -163,3 +163,14 @@ Les stubs sont dans `src/tests/stubs/` : headers inline (`pico/`, `ff.h`) et `pi
 ### Logging
 
 `DEBUG_LOG_ENABLE` and `LOG_LEVEL=LOG_LEVEL_DBG` are defined globally via the `fpv_sl_logging` interface library in `src/CMakeLists.txt`. Use `LOGI/LOGD/LOGW/LOGE` macros from `utils/debug_log.h`. Output goes over USB CDC.
+
+---
+
+## Prochaines étapes
+
+Mettre à jour cette section à chaque fin de session. Cocher / supprimer une ligne quand c'est fait.
+
+- [ ] **Implémenter `fpv_sl_process_mode()`** — les 3 modes (`ALWAY_RCD_TYPE`, `RCD_ONLY_TYPE`, `CLASSIC_TYPE`) sont encore des stubs commentés dans `fpv_sl_core.c`. C'est le chantier principal.
+- [ ] **Câbler `update_disk_status()`** — le marqueur est déjà en place dans les commentaires de `fpv_sl_process_mode`. À activer quand les modes seront implémentés.
+- [ ] **Migrer `test_recording_mode.c` en host test** — le fichier existe dans `src/tests/target/` mais n'est pas compilé. La logique (`get_mode_from_config`, `fpv_sl_process_mode`) est pure et testable sur PC.
+- [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
