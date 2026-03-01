@@ -68,6 +68,7 @@ Expected 0 Was 1
 | `test_audio_buffer` | `modules/audio_buffer/` | Full DMA→process→write→free cycle, overrun detection, ring index wrap, pending count |
 | `test_config_parser` | `parse_conf_key_value`, `string_to_key_enum` (in `file_helper.c`) | Valid pairs, missing separator, newline/CRLF stripping, all key enums, case sensitivity |
 | `test_dsp_filter` | `process_sample` (in `fpv_sl_core.c`) | DC rejection, first-sample gain, sign symmetry, Nyquist pass-through, alpha=0 |
+| `test_disk_usage` | `get_disk_usage_percent` (in `file_helper.c`) | Correct % computation (0/50/79/80/95/100%), `f_getfree` failure, zero total clusters |
 
 ### Stub strategy
 
@@ -78,8 +79,9 @@ The Pico SDK is not available on the host. Files in `src/tests/stubs/` replace t
 | `stubs/pico/critical_section.h` | `pico/critical_section.h` | `static inline` no-ops |
 | `stubs/pico/mutex.h` | `pico/mutex.h` | `static inline` no-ops |
 | `stubs/pico/multicore.h` | `pico/multicore.h` | Declarations only (implemented in `pico_stubs.c`) |
-| `stubs/ff.h` | FatFS `ff.h` | `static inline` no-ops; `f_gets` returns `NULL` to stop read loops immediately |
-| `stubs/pico_stubs.c` | Link-time symbols | `multicore_*`, `is_data_ready`, `get_active_buffer_ptr`, `write_buffer` |
+| `stubs/ff.h` | FatFS `ff.h` | `static inline` no-ops; `f_gets` returns `NULL`; `f_getfree` declared (implemented in `fatfs_getfree_stub.c`) |
+| `stubs/fatfs_getfree_stub.c` | `f_getfree` | Result configurable via `stub_set_disk(total, free, result)` |
+| `stubs/pico_stubs.c` | Link-time symbols | `multicore_*`, `is_data_ready`, `get_active_buffer_ptr`, `write_buffer`, `get_disk_usage_percent`, `status_indicator_*` |
 
 ### Adding a host test
 
