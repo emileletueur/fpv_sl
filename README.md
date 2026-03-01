@@ -173,6 +173,19 @@ cmake --build src/build
 
 ---
 
+## Testing
+
+Two test levels are available: **host tests** (PC, no hardware required) and an **on-target test runner** (Pico firmware). See [TESTING.md](TESTING.md) for the full step-by-step guide.
+
+```bash
+# Host tests — quick check, no hardware needed
+cmake -S src/tests -B src/tests/build_host
+cmake --build src/tests/build_host
+ctest --test-dir src/tests/build_host -V
+```
+
+---
+
 ## Project structure
 
 ```

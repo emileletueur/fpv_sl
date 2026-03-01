@@ -40,8 +40,9 @@ pico_sdk_init()
 # Usage: cmake -DFPV_SL_PICO_PROBE_DEBUG=ON ...
 option(FPV_SL_PICO_PROBE_DEBUG "Debug avec Pi Pico standard (LED onboard GP25 au lieu de WS2812)" OFF)
 if(FPV_SL_PICO_PROBE_DEBUG)
-    message(STATUS "FPV_SL: mode debug probe — LED onboard (USE_PICO_ONBOARD_LED)")
-    add_compile_definitions(USE_PICO_ONBOARD_LED)
+    message(STATUS "FPV_SL: mode debug probe — LED onboard (USE_PICO_ONBOARD_LED) + GPIO remap (FPV_SL_PICO_PROBE_DEBUG)")
+    add_compile_definitions(USE_PICO_ONBOARD_LED)       # LED GP25 au lieu de WS2812
+    add_compile_definitions(FPV_SL_PICO_PROBE_DEBUG)    # GPIO FC remap GP2/GP3 + simulateurs GP8/GP9
 endif()
 
 add_library(fpv_sl_logging INTERFACE)

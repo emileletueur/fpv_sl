@@ -1,7 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef USE_PICO_ONBOARD_LED
+#ifdef FPV_SL_PICO_PROBE_DEBUG
 // GP1/GP2 sont réservés au SWD en mode debug probe → décalage sur GP2/GP3
 #ifndef PIN_FC_ENABLE_PIN
 #define PIN_FC_ENABLE_PIN 2
@@ -24,7 +24,7 @@
 typedef int8_t (*gpio_trigger_callback_t)(void);
 void initialize_gpio_interface(gpio_trigger_callback_t enable_callback, gpio_trigger_callback_t record_callback);
 
-#ifdef USE_PICO_ONBOARD_LED
+#ifdef FPV_SL_PICO_PROBE_DEBUG
 // Positionne l'état de GP8 (simulateur ENABLE → GP2).
 // Passer false puis true pour générer un front montant détecté par l'IRQ.
 void gpio_sim_set_enable(bool active);

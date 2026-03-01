@@ -29,7 +29,7 @@ void initialize_gpio_interface(gpio_trigger_callback_t enable_callback, gpio_tri
     gpio_set_irq_enabled_with_callback(PIN_FC_ENABLE_PIN, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
     gpio_set_irq_enabled_with_callback(PIN_FC_RECORD_PIN, GPIO_IRQ_EDGE_RISE, true, &fc_irq);
 
-#ifdef USE_PICO_ONBOARD_LED
+#ifdef FPV_SL_PICO_PROBE_DEBUG
     // Initialise les sorties simulateur FC (GP8 → GP2, GP9 → GP3)
     gpio_init(PIN_FC_SIM_ENABLE);
     gpio_set_dir(PIN_FC_SIM_ENABLE, GPIO_OUT);
@@ -41,7 +41,7 @@ void initialize_gpio_interface(gpio_trigger_callback_t enable_callback, gpio_tri
 #endif
 }
 
-#ifdef USE_PICO_ONBOARD_LED
+#ifdef FPV_SL_PICO_PROBE_DEBUG
 void gpio_sim_set_enable(bool active) {
     gpio_put(PIN_FC_SIM_ENABLE, active ? 1 : 0);
 }
