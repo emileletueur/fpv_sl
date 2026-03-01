@@ -285,6 +285,25 @@ int8_t append_wav_header(uint32_t data_size) {
     return 0;
 }
 
+int8_t get_disk_usage_percent(uint8_t *out_percent) {
+    LOGI("Checking disk usage.");
+    FATFS *fs;
+    DWORD fre_clust;
+    FRESULT f_result = f_getfree("0:", &fre_clust, &fs);
+    if (f_result != FR_OK) {
+        LOGE("f_getfree failed: %d (%s).", f_result, get_fresult_str(f_result));
+        return -1;
+    }
+    DWORD total_clust = fs->n_fatent - 2;
+    if (total_clust == 0) {
+        LOGE("Disk total cluster count is zero.");
+        return -1;
+    }
+    *out_percent = (uint8_t)(((total_clust - fre_clust) * 100UL) / total_clust);
+    LOGI("Disk usage: %d%% (%lu / %lu clusters used).", *out_percent, total_clust - fre_clust, total_clust);
+    return 0;
+}
+
 int8_t write_buffer(uint32_t *buff) {
     FRESULT f_result;
     UINT bytes_written;

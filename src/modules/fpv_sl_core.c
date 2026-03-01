@@ -5,6 +5,8 @@
 #include "pico/mutex.h"
 #include "file_helper.h"
 #include "i2s_mic.h"
+#include "status_indicator.h"
+#include "debug_log.h"
 #include <pico/multicore.h>
 #include <stdint.h>
 
@@ -22,6 +24,25 @@ static audio_pipeline_t g_audio_pipeline;
 static volatile bool g_recording = false;
 
 
+
+/* Lit l'espace disque et met à jour la LED en conséquence.
+   À appeler après chaque finalize_wav_file(). */
+static void update_disk_status(void) {
+    uint8_t usage_pct;
+    if (get_disk_usage_percent(&usage_pct) != 0) {
+        LOGW("Disk usage check failed, skipping LED update.");
+        return;
+    }
+    if (usage_pct >= 95) {
+        LOGE("Disk critical: %d%% used.", usage_pct);
+        set_module_free_disk_critical_status();
+    } else if (usage_pct >= 80) {
+        LOGW("Disk alert: %d%% used.", usage_pct);
+        set_module_free_disk_alert_status();
+    } else {
+        LOGI("Disk OK: %d%% used.", usage_pct);
+    }
+}
 
 uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
     fpv_sl_conf = fpv_sl_config;
@@ -61,7 +82,8 @@ void fpv_sl_process_mode(void) {
         // Setup temporary file to write
         // start I2S DMA
         // Record until DESARM
-        // Finalize with WAV header
+        // finalize_wav_file(rcd_duration);
+        // update_disk_status();   ← check espace après chaque fichier
         // Rename file with final computed name
         // Update file index in conf file
         break;

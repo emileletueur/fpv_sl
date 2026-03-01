@@ -11,4 +11,5 @@ target_link_libraries(fpv_sl_core PUBLIC
     audio_buffer
     sdio
     i2s_mic
+    status_indicator
 )

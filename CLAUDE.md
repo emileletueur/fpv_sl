@@ -37,6 +37,23 @@ The output binary is `src/build/fpv_sl_loader.uf2` (and `.elf`).
 - **Commits** : pas de mention "Claude" ni de ligne `Co-Authored-By` dans les messages de commit.
 - Messages courts, impératifs, français ou anglais (les deux sont utilisés dans ce repo).
 
+### Architecture — règle d'orchestration
+
+`fpv_sl_core` est le seul module autorisé à appeler les autres modules. Les modules bas niveau (`sdio`, `gpio`, `audio_buffer`, `status_indicator`, etc.) ne doivent **jamais** s'appeler entre eux — pas de dépendances inter-modules.
+
+### Logging
+
+Toute nouvelle fonction doit tracer ses points clés avec les macros de `debug_log.h` :
+
+| Macro | Usage |
+|---|---|
+| `LOGI` | Début d'opération, résultat nominal, valeurs utiles au diagnostic |
+| `LOGW` | Situation anormale mais non bloquante |
+| `LOGE` | Erreur : code retour FatFS, pointeur NULL, état incohérent |
+| `LOGD` | Détail verbeux utile en debug poussé uniquement |
+
+Règle : un chemin d'erreur sans `LOGE` est un bug de traçabilité.
+
 ## Code style
 
 Format: clang-format with `src/clang-format` (LLVM style, 120-column limit, 4-space indent, no tabs, `PointerAlignment: Right`).

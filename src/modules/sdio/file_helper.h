@@ -32,3 +32,7 @@ int8_t create_wav_file(void);
 int8_t append_wav_header(uint32_t data_size);
 int8_t finalize_wav_file(uint32_t rcd_duration);
 int8_t write_buffer(uint32_t *buff);
+
+/* Retourne le pourcentage d'espace utilisé sur le volume monté (0-100).
+   Retourne -1 si f_getfree échoue. Doit être appelé après montage (read_conf_file). */
+int8_t get_disk_usage_percent(uint8_t *out_percent);
