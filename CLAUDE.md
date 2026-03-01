@@ -28,6 +28,15 @@ The output binary is `src/build/fpv_sl_loader.uf2` (and `.elf`).
 
 **Toolchain requirements:** CMake ≥ 3.13, Ninja, arm-none-eabi-gcc 14.2, Pico SDK 2.2.0.
 
+**`FPV_SL_PICO_PROBE_DEBUG=ON` émet deux define distincts :**
+- `USE_PICO_ONBOARD_LED` — LED type (onboard GP25 au lieu de WS2812)
+- `FPV_SL_PICO_PROBE_DEBUG` — GPIO FC remappés GP2/GP3 (SWD sur GP1/GP2 en mode probe) + sorties simulateur FC GP8/GP9
+
+## Conventions
+
+- **Commits** : pas de mention "Claude" ni de ligne `Co-Authored-By` dans les messages de commit.
+- Messages courts, impératifs, français ou anglais (les deux sont utilisés dans ce repo).
+
 ## Code style
 
 Format: clang-format with `src/clang-format` (LLVM style, 120-column limit, 4-space indent, no tabs, `PointerAlignment: Right`).
@@ -77,7 +86,7 @@ Default pins (overridable via `USE_CUSTOM_BOARD_PINS` in `modules/fpv_sl_core_bo
 |---|---|
 | I2S SD/SCK/WS | 26 / 27 / 28 |
 | SPI SD SCK/MOSI/MISO/CS | 10 / 11 / 12 / 13 |
-| FC ENABLE / RECORD | 1 / 2 |
+| FC ENABLE / RECORD | 1 / 2 (production) — 2 / 3 (debug probe) |
 | WS2812 LED | 16 |
 | Onboard LED (debug) | 25 |
 
@@ -99,8 +108,10 @@ src/build/tests/target/fpv_sl_test_runner.uf2
 **Câblage requis** (mode debug probe) : `GP8 → GP2` (simulateur ENABLE) et `GP9 → GP3` (simulateur RECORD).
 
 **Suites** (`src/tests/target/`) :
-- `test_gpio_interface.c` — 6 tests IRQ GPIO via `gpio_sim_set_enable/record(bool)`
-- `test_recording_mode.c` — 5 tests logique `get_mode_from_config` / `fpv_sl_process_mode`
+- `test_gpio_interface.c` — 6 tests IRQ GPIO via `gpio_sim_set_enable/record(bool)` (state-based, pas pulse)
+- `test_recording_mode.c` — présent sur disque mais **non compilé** (logique pure, couvert par les tests host)
+
+**USB** : le test runner utilise `pico_enable_stdio_usb 1` (CDC-ACM natif SDK, pas de MSC). Il ne faut **pas** lier `usb` ni `utils` — `debug_log_stub.c` fournit `debug_log_printf` via `printf`. Le logging fonctionne parce que `gpio` → `fpv_sl_logging` INTERFACE propage `DEBUG_LOG_ENABLE` + l'include `src/utils`.
 
 Framework minimaliste dans `test_framework.h` (`TEST_EXPECT_*`, `RUN_TEST`). Résultat en LED : vert fixe = tout PASS, rouge clignotant = échec(s).
 
