@@ -34,7 +34,9 @@ typedef enum {
     FR_INVALID_PARAMETER,
 } FRESULT;
 
-typedef struct { int _dummy; } FATFS;
+typedef struct {
+    DWORD n_fatent;  /* nombre d'entrées FAT (clusters totaux + 2) */
+} FATFS;
 typedef struct { int _dummy; } FIL;
 
 #define FA_READ          0x01
@@ -67,3 +69,7 @@ static inline FRESULT f_lseek(FIL *fp, QWORD ofs)
 
 static inline FRESULT f_rename(const char *old_name, const char *new_name)
     { (void)old_name; (void)new_name; return FR_OK; }
+
+/* f_getfree : implémentation fournie par fatfs_getfree_stub.c dans les tests
+   qui en ont besoin (test_disk_usage). */
+FRESULT f_getfree(const char *path, DWORD *nclst, FATFS **fatfs);

@@ -19,4 +19,16 @@ uint32_t         get_current_data_count(void) { return 0; }
 
 /* ── sdio / file_helper ─────────────────────────────────────────────────── */
 
-int8_t write_buffer(uint32_t *buff) { (void)buff; return 0; }
+int8_t write_buffer(uint32_t *buff)              { (void)buff; return 0; }
+int8_t get_disk_usage_percent(uint8_t *out_pct)  { if (out_pct) *out_pct = 0; return 0; }
+
+/* ── status_indicator ───────────────────────────────────────────────────── */
+
+void status_indicator_init(void)              {}
+void set_module_powered_status(void)          {}
+void set_usb_msc_status(void)                 {}
+void set_usb_msc_transer_status(void)         {}
+void set_module_record_ready_status(void)     {}
+void set_module_recording_status(void)        {}
+void set_module_free_disk_alert_status(void)  {}
+void set_module_free_disk_critical_status(void) {}

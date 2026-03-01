@@ -54,6 +54,7 @@ add_executable(test_config_parser
     host/test_config_parser.c
     ${SRC}/modules/sdio/file_helper.c
     ${SRC}/utils/cast_from_str.c
+    stubs/fatfs_getfree_stub.c
 )
 target_include_directories(test_config_parser PRIVATE
     ${SRC}                           # pour les includes relatifs de file_helper.c
@@ -79,6 +80,7 @@ target_include_directories(test_dsp_filter PRIVATE
     ${SRC}/modules
     ${SRC}/modules/audio_buffer      # audio_buffer.h (type audio_pipeline_t)
     ${SRC}/modules/sdio              # file_helper.h
+    ${SRC}/modules/status_indicator  # status_indicator.h (inclus par fpv_sl_core.c)
     ${SRC}/drivers/i2s_mic           # i2s_mic.h
     ${SRC}/utils                     # debug_log.h (macros no-op sans DEBUG_LOG_ENABLE)
     ${SRC}/config
@@ -88,3 +90,23 @@ target_include_directories(test_dsp_filter PRIVATE
 )
 target_link_libraries(test_dsp_filter PRIVATE unity)
 add_test(NAME dsp_filter COMMAND test_dsp_filter)
+
+# ── test_disk_usage ───────────────────────────────────────────────────────
+# Teste get_disk_usage_percent (file_helper.c).
+# f_getfree est fourni par fatfs_getfree_stub.c (résultat configurable).
+add_executable(test_disk_usage
+    host/test_disk_usage.c
+    ${SRC}/modules/sdio/file_helper.c
+    ${SRC}/utils/cast_from_str.c
+    stubs/fatfs_getfree_stub.c
+)
+target_include_directories(test_disk_usage PRIVATE
+    ${SRC}                           # pour les includes relatifs de file_helper.c
+    ${SRC}/modules/sdio
+    ${SRC}/utils
+    ${SRC}/config
+    ${STUBS}                         # ff.h stub + fatfs_getfree_stub.h
+    ${unity_SOURCE_DIR}/src
+)
+target_link_libraries(test_disk_usage PRIVATE unity)
+add_test(NAME disk_usage COMMAND test_disk_usage)
