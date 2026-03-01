@@ -174,3 +174,5 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [ ] **Câbler `update_disk_status()`** — le marqueur est déjà en place dans les commentaires de `fpv_sl_process_mode`. À activer quand les modes seront implémentés.
 - [ ] **Migrer `test_recording_mode.c` en host test** — le fichier existe dans `src/tests/target/` mais n'est pas compilé. La logique (`get_mode_from_config`, `fpv_sl_process_mode`) est pure et testable sur PC.
 - [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
+- [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
+- [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.
