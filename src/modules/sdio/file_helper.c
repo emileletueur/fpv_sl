@@ -20,6 +20,87 @@ static fpv_sl_conf_t fpv_sl_config  = {.conf_is_loaded = false};
 static char          s_rcd_folder[64]    = {0};
 static char          s_rcd_file_name[64] = {0};
 
+/* ── Valeurs par défaut ──────────────────────────────────────────────────── */
+
+#define DEFAULT_ALWAYS_RCD                true
+#define DEFAULT_USE_ENABLE_PIN            false
+#define DEFAULT_MIC_GAIN                  1
+#define DEFAULT_USE_HIGH_PASS_FILTER      true
+#define DEFAULT_HIGH_PASS_CUTOFF_FREQ     200
+#define DEFAULT_SAMPLE_RATE               44100
+#define DEFAULT_BUFFER_SIZE               256
+#define DEFAULT_IS_MONO_RCD               true
+#define DEFAULT_NEXT_FILE_NAME_INDEX      0
+#define DEFAULT_RCD_FOLDER                ""
+#define DEFAULT_RCD_FILE_NAME             "rec"
+#define DEFAULT_DEL_ON_MULTIPLE_ENABLE    false
+
+static void apply_defaults(void) {
+    fpv_sl_config.always_rcd                 = DEFAULT_ALWAYS_RCD;
+    fpv_sl_config.use_enable_pin             = DEFAULT_USE_ENABLE_PIN;
+    fpv_sl_config.mic_gain                   = DEFAULT_MIC_GAIN;
+    fpv_sl_config.use_high_pass_filter       = DEFAULT_USE_HIGH_PASS_FILTER;
+    fpv_sl_config.high_pass_cutoff_freq      = DEFAULT_HIGH_PASS_CUTOFF_FREQ;
+    fpv_sl_config.sample_rate                = DEFAULT_SAMPLE_RATE;
+    fpv_sl_config.buffer_size                = DEFAULT_BUFFER_SIZE;
+    fpv_sl_config.is_mono_rcd                = DEFAULT_IS_MONO_RCD;
+    fpv_sl_config.next_file_name_index       = DEFAULT_NEXT_FILE_NAME_INDEX;
+    fpv_sl_config.delete_on_multiple_enable_tick = DEFAULT_DEL_ON_MULTIPLE_ENABLE;
+    strncpy(s_rcd_folder,    DEFAULT_RCD_FOLDER,    sizeof(s_rcd_folder) - 1);
+    strncpy(s_rcd_file_name, DEFAULT_RCD_FILE_NAME, sizeof(s_rcd_file_name) - 1);
+    fpv_sl_config.rcd_folder    = s_rcd_folder;
+    fpv_sl_config.rcd_file_name = s_rcd_file_name;
+}
+
+static int8_t write_default_conf(void) {
+    LOGI("Creating default.conf with factory defaults.");
+    FRESULT fr = f_open(&file_p, CONFIG_FILE_PATH, FA_CREATE_ALWAYS | FA_WRITE);
+    if (fr != FR_OK) {
+        LOGE("write_default_conf: open failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    char buf[512];
+    int len = snprintf(buf, sizeof(buf),
+        ALWAYS_RCD                " %s\n"
+        USE_ENABLE_PIN            " %s\n"
+        MIC_GAIN                  " %u\n"
+        USE_HIGH_PASS_FILTER      " %s\n"
+        HIGH_PASS_CUTOFF_FREQ     " %u\n"
+        SAMPLE_RATE               " %u\n"
+        BUFFER_SIZE               " %u\n"
+        IS_MONO_RCD               " %s\n"
+        NEXT_FILE_NAME_INDEX      " %u\n"
+        RCD_FOLDER                " %s\n"
+        RCD_FILE_NAME             " %s\n"
+        DEL_ON_MULTIPLE_ENABLE_TICK " %s\n",
+        DEFAULT_ALWAYS_RCD             ? "true" : "false",
+        DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
+        DEFAULT_MIC_GAIN,
+        DEFAULT_USE_HIGH_PASS_FILTER   ? "true" : "false",
+        DEFAULT_HIGH_PASS_CUTOFF_FREQ,
+        DEFAULT_SAMPLE_RATE,
+        DEFAULT_BUFFER_SIZE,
+        DEFAULT_IS_MONO_RCD            ? "true" : "false",
+        DEFAULT_NEXT_FILE_NAME_INDEX,
+        DEFAULT_RCD_FOLDER,
+        DEFAULT_RCD_FILE_NAME,
+        DEFAULT_DEL_ON_MULTIPLE_ENABLE ? "true" : "false");
+    if (len < 0 || (size_t)len >= sizeof(buf)) {
+        LOGE("write_default_conf: snprintf overflow.");
+        f_close(&file_p);
+        return -1;
+    }
+    UINT bw;
+    fr = f_write(&file_p, buf, (UINT)len, &bw);
+    f_close(&file_p);
+    if (fr != FR_OK || bw != (UINT)len) {
+        LOGE("write_default_conf: write failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    LOGI("default.conf created (%d bytes).", len);
+    return 0;
+}
+
 key_value_pair_t parse_conf_key_value(char *line) {
     key_value_pair_t result = {0};
     result.valid = false;
@@ -214,15 +295,24 @@ int8_t read_conf_file(void) {
 
     LOGI("Read config file.");
 
+    /* Pré-charger les valeurs par défaut : valides même si le fichier est absent. */
+    apply_defaults();
+
     f_result = f_mount(&fatfs_mount_p, "0:", 1);
     if (f_result != FR_OK) {
-        LOGI("Mount failed: %d (%s).", f_result, get_fresult_str(f_result));
+        LOGE("Mount failed: %d (%s).", f_result, get_fresult_str(f_result));
         return -1;
     }
 
     f_result = f_open(&file_p, CONFIG_FILE_PATH, FA_READ);
+    if (f_result == FR_NO_FILE) {
+        LOGW("default.conf absent — using factory defaults.");
+        write_default_conf();
+        fpv_sl_config.conf_is_loaded = true;
+        return 0;
+    }
     if (f_result != FR_OK) {
-        LOGI("Config file error: %d.", f_result);
+        LOGE("Config file open error: %d (%s).", f_result, get_fresult_str(f_result));
         return -1;
     }
 
