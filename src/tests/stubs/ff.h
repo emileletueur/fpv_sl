@@ -89,3 +89,11 @@ static inline FRESULT f_stat(const char *path, FILINFO *fno)
 static inline FSIZE_t f_size(FIL *fp) { (void)fp; return 0; }
 
 static inline FRESULT f_sync(FIL *fp) { (void)fp; return FR_OK; }
+
+/* f_expand : no-op — retourne FR_OK pour que le chemin nominal (pré-allocation réussie)
+   soit exercé dans les tests host. */
+static inline FRESULT f_expand(FIL *fp, FSIZE_t fsz, BYTE opt)
+    { (void)fp; (void)fsz; (void)opt; return FR_OK; }
+
+/* f_truncate : no-op. */
+static inline FRESULT f_truncate(FIL *fp) { (void)fp; return FR_OK; }

@@ -74,9 +74,27 @@ The core design splits work across both RP2040 cores:
 2. If USB host detected → USB MSC + CDC loop (exposes SD card as mass storage; config/recording only start after CDC ready at 5 s).
 3. If USB timeout → recording mode directly.
 
+### WAV file lifecycle
+
+`t_mic_rcd.wav` is the sentinel file for in-progress recordings.
+
+| Phase | What happens |
+|---|---|
+| `create_wav_file()` | Opens `t_mic_rcd.wav`, calls `f_expand()` to pre-allocate a contiguous block (`sample_rate × channels × 2 × MAX_RCD_DURATION + 44` bytes), writes a placeholder WAV header with `data_bytes = 0`. If `f_expand` fails (fragmented card, insufficient contiguous space), recording continues without pre-allocation — `LOGW` emitted, no abort. |
+| `write_buffer()` + `sync_wav_file()` | Every `SYNC_PERIOD_BLOCKS` (64) blocks written (~370 ms at 44.1 kHz), `sync_wav_file()` rewrites the WAV header at offset 0 with the current `g_audio_bytes_written` value (checkpoint), seeks back to the write position, and calls `f_sync()`. |
+| `finalize_wav_file()` | If pre-allocation was active: `f_truncate()` at `sizeof(wav_header_t) + g_audio_bytes_written` to release unused clusters. Then rewrites the final WAV header, closes, renames to `<rcd_folder><rcd_file_name><index>.wav`, increments `NEXT_FILE_NAME_INDEX` in `default.conf`. `f_truncate` failure is non-fatal (LOGW) — audio content is unaffected. |
+| `recover_unfinalized_recording()` | Called at boot before USB/recording split. Detects `t_mic_rcd.wav` via `f_stat`. Reads the existing WAV header: if `data_bytes > 0` and within file bounds, uses it as the valid audio size (accurate to the last sync, ≤ 370 ms loss). If `data_bytes == 0` (power cut before first sync), falls back to `finfo.fsize - 44` (may include uninitialized pre-allocated data at tail). In both cases, `f_truncate()` is called before rename. |
+
+**Power-cut guarantees:**
+- Normal recording (no power cut): exact file size, clean close.
+- Power cut after ≥ 1 sync: recovered file accurate to within ~370 ms.
+- Power cut before first sync (< 370 ms after start): fallback recovery using full file size — tail may contain uninitialized SD sector data if pre-allocation was active.
+
 ### Configuration
 
 `default.conf` on the SD card root is parsed at runtime by `config/fpv_sl_config.{h,c}` and `modules/sdio/file_helper.{c,h}`. The parsed result is `fpv_sl_conf_t`. Recording mode (`execution_condition_t`) is derived from `always_rcd` and `use_enable_pin` flags.
+
+If `default.conf` is absent, factory defaults are applied and the file is created on the SD card (`FR_NO_FILE` path in `read_conf_file()`). If the SD card fails to mount, `conf_is_loaded` stays false and recording does not start.
 
 ### Key modules
 
@@ -176,7 +194,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
 - [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.
-- [ ] **Pré-allocation WAV via `f_expand()`** — activer `FF_USE_EXPAND 1` dans `ffconf.h`. Dans `create_wav_file()` : appeler `f_expand(fp, pre_alloc_bytes, 1)` juste après `f_open()`. Dans `finalize_wav_file()` : appeler `f_truncate()` au pointeur courant avant de réécrire le header (libère les clusters non écrits). Ajouter la clé `MAX_RCD_DURATION` (uint16_t, secondes, défaut 300 s ≈ 1 lipo) dans `default.conf` et `fpv_sl_conf_t` pour calculer `pre_alloc_bytes = sample_rate × channels × 2 × duration + sizeof(wav_header_t)`. Mettre à jour `ff.h` stub (`f_expand` no-op, `f_truncate` no-op). Bénéfice : supprime les extensions de chaîne FAT pendant l'écriture → latence SD prévisible → moins de buffer overruns.
+- [x] **Pré-allocation WAV via `f_expand()`** — implémenté avec fallback, checkpoint header dans `sync_wav_file()`, truncate dans `finalize_wav_file()` et `recover_unfinalized_recording()`. Clé `MAX_RCD_DURATION` ajoutée (défaut 300 s). Voir section *WAV file lifecycle* dans Architecture.
 - [ ] **Filtre passe-bas + passe-bande** — ajouter un filtre passe-bas IIR symétrique au passe-haut existant (`process_sample`) pour obtenir un passe-bande configurable (ex. 200 Hz – 8 kHz). Fréquence de coupure haute à exposer dans `default.conf`.
 - [ ] **Gain automatique (AGC)** — étudier un contrôle automatique de gain pour normaliser le niveau du signal selon l'amplitude mesurée sur fenêtre glissante.
 - [ ] **Logging FC via UART DMA** — évaluer la faisabilité d'une capture UART depuis le FC (télémétrie / MSP) par DMA pour corréler les logs de vol avec l'audio.

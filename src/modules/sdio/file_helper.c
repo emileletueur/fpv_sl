@@ -20,6 +20,10 @@ static fpv_sl_conf_t fpv_sl_config  = {.conf_is_loaded = false};
 static char          s_rcd_folder[64]    = {0};
 static char          s_rcd_file_name[64] = {0};
 
+/* État de la pré-allocation en cours d'enregistrement. */
+static bool     g_prealloc_active     = false;
+static uint32_t g_audio_bytes_written = 0;
+
 /* ── Valeurs par défaut ──────────────────────────────────────────────────── */
 
 #define DEFAULT_ALWAYS_RCD                true
@@ -34,6 +38,7 @@ static char          s_rcd_file_name[64] = {0};
 #define DEFAULT_RCD_FOLDER                ""
 #define DEFAULT_RCD_FILE_NAME             "rec"
 #define DEFAULT_DEL_ON_MULTIPLE_ENABLE    false
+#define DEFAULT_MAX_RCD_DURATION          300   /* 5 min ≈ 1 lipo */
 
 static void apply_defaults(void) {
     fpv_sl_config.always_rcd                 = DEFAULT_ALWAYS_RCD;
@@ -46,6 +51,7 @@ static void apply_defaults(void) {
     fpv_sl_config.is_mono_rcd                = DEFAULT_IS_MONO_RCD;
     fpv_sl_config.next_file_name_index       = DEFAULT_NEXT_FILE_NAME_INDEX;
     fpv_sl_config.delete_on_multiple_enable_tick = DEFAULT_DEL_ON_MULTIPLE_ENABLE;
+    fpv_sl_config.max_rcd_duration               = DEFAULT_MAX_RCD_DURATION;
     strncpy(s_rcd_folder,    DEFAULT_RCD_FOLDER,    sizeof(s_rcd_folder) - 1);
     strncpy(s_rcd_file_name, DEFAULT_RCD_FILE_NAME, sizeof(s_rcd_file_name) - 1);
     fpv_sl_config.rcd_folder    = s_rcd_folder;
@@ -72,7 +78,8 @@ static int8_t write_default_conf(void) {
         NEXT_FILE_NAME_INDEX      " %u\n"
         RCD_FOLDER                " %s\n"
         RCD_FILE_NAME             " %s\n"
-        DEL_ON_MULTIPLE_ENABLE_TICK " %s\n",
+        DEL_ON_MULTIPLE_ENABLE_TICK " %s\n"
+        MAX_RCD_DURATION            " %u\n",
         DEFAULT_ALWAYS_RCD             ? "true" : "false",
         DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
         DEFAULT_MIC_GAIN,
@@ -84,7 +91,8 @@ static int8_t write_default_conf(void) {
         DEFAULT_NEXT_FILE_NAME_INDEX,
         DEFAULT_RCD_FOLDER,
         DEFAULT_RCD_FILE_NAME,
-        DEFAULT_DEL_ON_MULTIPLE_ENABLE ? "true" : "false");
+        DEFAULT_DEL_ON_MULTIPLE_ENABLE ? "true" : "false",
+        DEFAULT_MAX_RCD_DURATION);
     if (len < 0 || (size_t)len >= sizeof(buf)) {
         LOGE("write_default_conf: snprintf overflow.");
         f_close(&file_p);
@@ -160,6 +168,8 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_RCD_FILE_NAME;
     if (strcmp(key, DEL_ON_MULTIPLE_ENABLE_TICK) == 0)
         return KEY_DEL_ON_MULTIPLE_ENABLE_TICK;
+    if (strcmp(key, MAX_RCD_DURATION) == 0)
+        return KEY_MAX_RCD_DURATION;
     return KEY_UNKNOWN;
 }
 
@@ -358,6 +368,9 @@ int8_t read_conf_file(void) {
         case KEY_DEL_ON_MULTIPLE_ENABLE_TICK:
             fpv_sl_config.delete_on_multiple_enable_tick = parse_bool(conf_item.value);
             break;
+        case KEY_MAX_RCD_DURATION:
+            fpv_sl_config.max_rcd_duration = parse_uint16(conf_item.value);
+            break;
         case KEY_UNKNOWN:
             break;
         }
@@ -377,25 +390,94 @@ int8_t read_conf_file(void) {
 int8_t create_wav_file(void) {
     if (!fpv_sl_config.conf_is_loaded)
         return -1;
+
     char file_path[64];
     snprintf(file_path, sizeof(file_path), "0:/%s", TEMPORARY_FILE_NAME);
-    FRESULT f_result = f_open(&file_p, file_path, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-    if (f_result != FR_OK) {
-        LOGI("Failed to create temporary file: %d", f_result);
+
+    FRESULT fr = f_open(&file_p, file_path, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+    if (fr != FR_OK) {
+        LOGE("create_wav_file: open failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
     }
 
+    g_audio_bytes_written = 0;
+    g_prealloc_active     = false;
+
+    /* Pré-allocation : réserve un bloc de clusters contigus pour éliminer la latence
+       d'extension FAT pendant l'enregistrement.
+       En cas d'échec (carte fragmentée, espace insuffisant), on continue sans pré-allocation —
+       le recording reste fonctionnel, avec une latence d'écriture moins prévisible. */
+    uint8_t  channels        = fpv_sl_config.is_mono_rcd ? 1 : 2;
+    uint32_t pre_alloc_bytes = (uint32_t)fpv_sl_config.sample_rate
+                               * channels * 2
+                               * fpv_sl_config.max_rcd_duration
+                               + sizeof(wav_header_t);
+    LOGI("Requesting %lu B pre-allocation (%us at %uHz %s).",
+         pre_alloc_bytes, fpv_sl_config.max_rcd_duration,
+         fpv_sl_config.sample_rate, fpv_sl_config.is_mono_rcd ? "mono" : "stereo");
+
+    fr = f_expand(&file_p, (FSIZE_t)pre_alloc_bytes, 1);
+    if (fr == FR_OK) {
+        g_prealloc_active = true;
+        LOGI("Pre-allocation OK.");
+    } else {
+        LOGW("f_expand failed (%s) — recording without pre-allocation.", get_fresult_str(fr));
+    }
+
+    /* Header placeholder avec data_bytes = 0.
+       Mis à jour à chaque sync_wav_file() pour permettre une récupération précise
+       en cas de coupure secteur. */
+    fr = f_lseek(&file_p, 0);
+    if (fr != FR_OK) {
+        LOGE("create_wav_file: seek failed: %d (%s).", fr, get_fresult_str(fr));
+        f_close(&file_p);
+        return -1;
+    }
+    wav_header_t placeholder = {.riff_header     = {'R', 'I', 'F', 'F'},
+                                .wave_header     = {'W', 'A', 'V', 'E'},
+                                .fmt_header      = {'f', 'm', 't', ' '},
+                                .data_header     = {'D', 'A', 'T', 'A'},
+                                .fmt_chunk_size  = 16,
+                                .audio_format    = 1,
+                                .num_channels    = channels,
+                                .sample_rate     = fpv_sl_config.sample_rate,
+                                .bits_per_sample = 16,
+                                .byte_rate       = fpv_sl_config.sample_rate * channels * 16 / 8,
+                                .block_align     = channels * 16 / 8,
+                                .wav_size        = 36,
+                                .data_bytes      = 0};
+    UINT bw;
+    fr = f_write(&file_p, &placeholder, sizeof(placeholder), &bw);
+    if (fr != FR_OK || bw != sizeof(placeholder)) {
+        LOGE("create_wav_file: header write failed: %d (%s).", fr, get_fresult_str(fr));
+        f_close(&file_p);
+        return -1;
+    }
+
+    LOGI("WAV file created (pre-alloc: %s).", g_prealloc_active ? "yes" : "no");
     return 0;
 }
 
 int8_t finalize_wav_file(uint32_t rcd_duration) {
     FRESULT f_result;
 
-    /* 1. Calcul de la taille réelle des données audio. */
-    FSIZE_t file_size       = f_size(&file_p);
-    uint32_t data_bytes_real = (file_size > sizeof(wav_header_t))
-                                   ? (uint32_t)(file_size - sizeof(wav_header_t))
-                                   : 0;
+    uint32_t data_bytes_real = g_audio_bytes_written;
     LOGI("Finalising WAV: %lu bytes of audio, duration %lums.", data_bytes_real, rcd_duration);
+
+    /* 1. Truncate si pré-allocation active : libère les clusters non écrits.
+          En cas d'échec on continue — le fichier sera trop grand mais l'audio sera valide. */
+    if (g_prealloc_active) {
+        f_result = f_lseek(&file_p, sizeof(wav_header_t) + data_bytes_real);
+        if (f_result == FR_OK) {
+            f_result = f_truncate(&file_p);
+            if (f_result != FR_OK) {
+                LOGW("Finalise: truncate failed (%s) — unused clusters not freed.", get_fresult_str(f_result));
+            } else {
+                LOGI("Pre-allocated space truncated.");
+            }
+        }
+        g_prealloc_active = false;
+    }
 
     /* 2. Réécriture du header avec les vraies tailles. */
     wav_header_t header = {.riff_header     = {'R', 'I', 'F', 'F'},
@@ -507,10 +589,33 @@ int8_t recover_unfinalized_recording(void) {
         return -1;
     }
 
-    FSIZE_t file_size        = f_size(&file_p);
-    uint32_t data_bytes_real = (file_size > sizeof(wav_header_t))
-                                   ? (uint32_t)(file_size - sizeof(wav_header_t))
-                                   : 0;
+    /* Lire le header WAV : sync_wav_file() le met à jour à chaque période (~370 ms).
+       data_bytes reflète donc la quantité d'audio valide jusqu'au dernier sync.
+       Si data_bytes == 0 (coupure avant le 1er sync) : fallback sur la taille fichier. */
+    wav_header_t hdr = {0};
+    UINT br;
+    f_read(&file_p, &hdr, sizeof(hdr), &br);
+
+    uint32_t data_bytes_real;
+    if (hdr.data_bytes > 0 && hdr.data_bytes <= finfo.fsize - sizeof(wav_header_t)) {
+        data_bytes_real = hdr.data_bytes;
+        LOGI("recover: checkpoint found — %lu bytes of valid audio.", (unsigned long)data_bytes_real);
+    } else {
+        data_bytes_real = (finfo.fsize > sizeof(wav_header_t))
+                              ? (uint32_t)(finfo.fsize - sizeof(wav_header_t))
+                              : 0;
+        LOGW("recover: no checkpoint — using full file size (%lu bytes, may include garbage).",
+             (unsigned long)data_bytes_real);
+    }
+
+    /* Truncate au point de données réelles (libère les clusters pré-alloués non écrits). */
+    FRESULT fr2 = f_lseek(&file_p, sizeof(wav_header_t) + data_bytes_real);
+    if (fr2 == FR_OK) {
+        fr2 = f_truncate(&file_p);
+        if (fr2 != FR_OK) {
+            LOGW("recover: truncate failed (%s) — unused clusters not freed.", get_fresult_str(fr2));
+        }
+    }
 
     wav_header_t header = {.riff_header     = {'R', 'I', 'F', 'F'},
                            .wave_header     = {'W', 'A', 'V', 'E'},
@@ -564,12 +669,48 @@ int8_t recover_unfinalized_recording(void) {
 }
 
 int8_t sync_wav_file(void) {
-    FRESULT fr = f_sync(&file_p);
+    /* Checkpoint header : met à jour data_bytes avec la quantité d'audio déjà écrite.
+       En cas de coupure secteur, recover_unfinalized_recording() lira ce champ pour
+       reconstruire un fichier valide jusqu'au dernier sync (~370 ms de précision). */
+    wav_header_t header = {.riff_header     = {'R', 'I', 'F', 'F'},
+                           .wave_header     = {'W', 'A', 'V', 'E'},
+                           .fmt_header      = {'f', 'm', 't', ' '},
+                           .data_header     = {'D', 'A', 'T', 'A'},
+                           .fmt_chunk_size  = 16,
+                           .audio_format    = 1,
+                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .sample_rate     = fpv_sl_config.sample_rate,
+                           .bits_per_sample = 16,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .wav_size        = 36 + g_audio_bytes_written,
+                           .data_bytes      = g_audio_bytes_written};
+
+    FRESULT fr = f_lseek(&file_p, 0);
+    if (fr != FR_OK) {
+        LOGE("sync: seek to header failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+    UINT bw;
+    fr = f_write(&file_p, &header, sizeof(header), &bw);
+    if (fr != FR_OK || bw != sizeof(header)) {
+        LOGE("sync: header checkpoint failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    /* Repositionnement au point d'écriture audio courant pour reprendre normalement. */
+    fr = f_lseek(&file_p, sizeof(wav_header_t) + g_audio_bytes_written);
+    if (fr != FR_OK) {
+        LOGE("sync: seek restore failed: %d (%s).", fr, get_fresult_str(fr));
+        return -1;
+    }
+
+    fr = f_sync(&file_p);
     if (fr != FR_OK) {
         LOGE("sync: f_sync failed: %d (%s).", fr, get_fresult_str(fr));
         return -1;
     }
-    LOGD("WAV file synced.");
+    LOGD("WAV synced: %lu bytes.", g_audio_bytes_written);
     return 0;
 }
 
@@ -593,14 +734,13 @@ int8_t get_disk_usage_percent(uint8_t *out_percent) {
 }
 
 int8_t write_buffer(uint32_t *buff) {
-    FRESULT f_result;
+    UINT bytes_to_write = fpv_sl_config.buffer_size * sizeof(uint32_t);
     UINT bytes_written;
-
-    f_write(&file_p, buff, sizeof(buff), &bytes_written);
-    if (f_result != FR_OK || bytes_written != sizeof(buff)) {
-        // Gestion d'erreur
-        LOGE("Err while write data buffer : %d", f_result);
+    FRESULT fr = f_write(&file_p, buff, bytes_to_write, &bytes_written);
+    if (fr != FR_OK || bytes_written != bytes_to_write) {
+        LOGE("write_buffer: f_write failed: %d (%s).", fr, get_fresult_str(fr));
         return -1;
     }
+    g_audio_bytes_written += bytes_written;
     return 0;
 }

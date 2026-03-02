@@ -18,6 +18,7 @@
 #define RCD_FOLDER "RCD_FOLDER"
 #define RCD_FILE_NAME "RCD_FILE_NAME"
 #define DEL_ON_MULTIPLE_ENABLE_TICK "DEL_ON_MULTIPLE_ENABLE_TICK"
+#define MAX_RCD_DURATION "MAX_RCD_DURATION"
 #endif
 
 typedef struct {
@@ -40,6 +41,7 @@ typedef enum {
     KEY_RCD_FOLDER,
     KEY_RCD_FILE_NAME,
     KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
+    KEY_MAX_RCD_DURATION,
 } config_key_enum_t;
 
 typedef struct {
@@ -56,6 +58,7 @@ typedef struct {
     char *rcd_folder;
     char *rcd_file_name;
     bool delete_on_multiple_enable_tick;
+    uint16_t max_rcd_duration;         /* durée max d'enregistrement en secondes (pré-allocation) */
 } fpv_sl_conf_t;
 
 key_value_pair_t parse_conf_key_value(char *line);
