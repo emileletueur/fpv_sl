@@ -535,40 +535,6 @@ int8_t finalize_wav_file(uint32_t rcd_duration) {
     return 0;
 }
 
-int8_t append_wav_header(uint32_t data_size) {
-    FRESULT f_result;
-    UINT bytes_written;
-    wav_header_t header = {.riff_header = {'R', 'I', 'F', 'F'},
-                           .wave_header = {'W', 'A', 'V', 'E'},
-                           .fmt_header = {'f', 'm', 't', ' '},
-                           .data_header = {'D', 'A', 'T', 'A'},
-                           .fmt_chunk_size = 16,
-                           .audio_format = 1,
-                           .num_channels = fpv_sl_config.is_mono_rcd ? 1 : 2,
-                           .sample_rate = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
-                           .block_align = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
-                           .wav_size = 36 + 1000,
-                           .data_bytes = 1000};
-
-    f_result = f_lseek(&file_p, 0);
-    if (f_result != FR_OK || bytes_written != sizeof(header)) {
-        // Gestion d'erreur
-        LOGE("Err while seek 0 the file : %d", f_result);
-        return -1;
-    }
-
-    f_result = f_write(&file_p, &header, sizeof(header), &bytes_written);
-    if (f_result != FR_OK || bytes_written != sizeof(header)) {
-        // Gestion d'erreur
-        LOGE("Err while write header : %d", f_result);
-        return -1;
-    }
-
-    return 0;
-}
-
 int8_t recover_unfinalized_recording(void) {
     char tmp_path[64];
     snprintf(tmp_path, sizeof(tmp_path), "0:/%s", TEMPORARY_FILE_NAME);
