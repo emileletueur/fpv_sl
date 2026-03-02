@@ -173,6 +173,7 @@ ctest --test-dir src/tests/build_host -V
 | `test_audio_buffer` | `modules/audio_buffer/` | `pico/critical_section.h` |
 | `test_config_parser` | `parse_conf_key_value`, `string_to_key_enum` (dans `file_helper.c`) | `ff.h` (FatFS) |
 | `test_dsp_filter` | `process_sample` (dans `fpv_sl_core.c`) | `pico/multicore.h`, `pico/mutex.h`, `ff.h` + link stubs |
+| `test_recording_mode` | `get_mode_from_config`, `fpv_sl_process_mode` (dans `fpv_sl_core.c`) | mêmes que `test_dsp_filter` |
 
 Les stubs sont dans `src/tests/stubs/` : headers inline (`pico/`, `ff.h`) et `pico_stubs.c` pour les symboles link-time.
 
@@ -190,7 +191,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 
 - [ ] **Implémenter `fpv_sl_process_mode()`** — les 3 modes (`ALWAY_RCD_TYPE`, `RCD_ONLY_TYPE`, `CLASSIC_TYPE`) sont encore des stubs commentés dans `fpv_sl_core.c`. C'est le chantier principal.
 - [ ] **Câbler `update_disk_status()`** — le marqueur est déjà en place dans les commentaires de `fpv_sl_process_mode`. À activer quand les modes seront implémentés.
-- [ ] **Migrer `test_recording_mode.c` en host test** — le fichier existe dans `src/tests/target/` mais n'est pas compilé. La logique (`get_mode_from_config`, `fpv_sl_process_mode`) est pure et testable sur PC.
+- [x] **Migrer `test_recording_mode.c` en host test** — `src/tests/host/test_recording_mode.c`, 5 tests Unity, mêmes dépendances que `test_dsp_filter` (`fpv_sl_core.c` + `pico_stubs.c`).
 - [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
 - [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.

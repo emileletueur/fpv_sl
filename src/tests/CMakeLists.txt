@@ -91,6 +91,29 @@ target_include_directories(test_dsp_filter PRIVATE
 target_link_libraries(test_dsp_filter PRIVATE unity)
 add_test(NAME dsp_filter COMMAND test_dsp_filter)
 
+# ── test_recording_mode ───────────────────────────────────────────────────
+# Teste get_mode_from_config et que fpv_sl_process_mode ne crashe pas.
+# Mêmes dépendances que test_dsp_filter (fpv_sl_core.c + pico_stubs.c).
+add_executable(test_recording_mode
+    host/test_recording_mode.c
+    ${SRC}/modules/fpv_sl_core.c
+    stubs/pico_stubs.c
+)
+target_include_directories(test_recording_mode PRIVATE
+    ${SRC}
+    ${SRC}/modules
+    ${SRC}/modules/audio_buffer
+    ${SRC}/modules/sdio
+    ${SRC}/modules/status_indicator
+    ${SRC}/drivers/i2s_mic
+    ${SRC}/utils
+    ${SRC}/config
+    ${STUBS}
+    ${unity_SOURCE_DIR}/src
+)
+target_link_libraries(test_recording_mode PRIVATE unity)
+add_test(NAME recording_mode COMMAND test_recording_mode)
+
 # ── test_disk_usage ───────────────────────────────────────────────────────
 # Teste get_disk_usage_percent (file_helper.c).
 # f_getfree est fourni par fatfs_getfree_stub.c (résultat configurable).
