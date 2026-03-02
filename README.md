@@ -132,6 +132,10 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | `rcd_folder` | `/` / `records/` | Destination folder for WAV files |
 | `rcd_file_name` | `mic_wav` / ... | Base name for WAV files |
 | `del_on_multiple_enable_tick` | `true` / `false` | Delete all WAV files in the recording folder if ENABLE is toggled 3× within 5 s (only effective while disarmed) |
+| `max_rcd_duration` | seconds (default `300`) | Maximum recording duration used for WAV pre-allocation via `f_expand()`. Falls back gracefully if contiguous space is unavailable. |
+| `use_uart_msp` | `true` / `false` | Enable MSP polling over UART to detect FC arm state and trigger recording (replaces or complements GPIO pins) |
+| `msp_uart_id` | `0` / `1` | Pico UART peripheral to use for MSP (default `1`) |
+| `msp_baud_rate` | e.g. `115200`, `230400`, `460800` | Baud rate for the MSP UART (default `115200`) |
 
 ---
 

@@ -19,6 +19,9 @@
 #define RCD_FILE_NAME "RCD_FILE_NAME"
 #define DEL_ON_MULTIPLE_ENABLE_TICK "DEL_ON_MULTIPLE_ENABLE_TICK"
 #define MAX_RCD_DURATION "MAX_RCD_DURATION"
+#define USE_UART_MSP "USE_UART_MSP"
+#define MSP_UART_ID "MSP_UART_ID"
+#define MSP_BAUD_RATE "MSP_BAUD_RATE"
 #endif
 
 typedef struct {
@@ -42,6 +45,9 @@ typedef enum {
     KEY_RCD_FILE_NAME,
     KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
     KEY_MAX_RCD_DURATION,
+    KEY_USE_UART_MSP,
+    KEY_MSP_UART_ID,
+    KEY_MSP_BAUD_RATE,
 } config_key_enum_t;
 
 typedef struct {
@@ -58,7 +64,10 @@ typedef struct {
     char *rcd_folder;
     char *rcd_file_name;
     bool delete_on_multiple_enable_tick;
-    uint16_t max_rcd_duration;         /* durée max d'enregistrement en secondes (pré-allocation) */
+    uint16_t max_rcd_duration;  /* durée max d'enregistrement en secondes (pré-allocation) */
+    bool     use_uart_msp;      /* active le polling MSP via UART pour le trigger ARM */
+    uint8_t  msp_uart_id;       /* UART Pico utilisé pour MSP : 0 ou 1 */
+    uint32_t msp_baud_rate;     /* baud rate MSP : 115200 / 230400 / 460800 */
 } fpv_sl_conf_t;
 
 key_value_pair_t parse_conf_key_value(char *line);

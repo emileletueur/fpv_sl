@@ -108,6 +108,18 @@ void test_key_del_on_multiple_enable_tick(void) {
     TEST_ASSERT_EQUAL_INT(KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
                           string_to_key_enum("DEL_ON_MULTIPLE_ENABLE_TICK"));
 }
+void test_key_max_rcd_duration(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_MAX_RCD_DURATION, string_to_key_enum("MAX_RCD_DURATION"));
+}
+void test_key_use_uart_msp(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_USE_UART_MSP, string_to_key_enum("USE_UART_MSP"));
+}
+void test_key_msp_uart_id(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_MSP_UART_ID, string_to_key_enum("MSP_UART_ID"));
+}
+void test_key_msp_baud_rate(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_MSP_BAUD_RATE, string_to_key_enum("MSP_BAUD_RATE"));
+}
 void test_key_unknown_string(void) {
     TEST_ASSERT_EQUAL_INT(KEY_UNKNOWN, string_to_key_enum("FOOBAR"));
 }
@@ -146,6 +158,10 @@ int main(void) {
     RUN_TEST(test_key_rcd_folder);
     RUN_TEST(test_key_rcd_file_name);
     RUN_TEST(test_key_del_on_multiple_enable_tick);
+    RUN_TEST(test_key_max_rcd_duration);
+    RUN_TEST(test_key_use_uart_msp);
+    RUN_TEST(test_key_msp_uart_id);
+    RUN_TEST(test_key_msp_baud_rate);
     RUN_TEST(test_key_unknown_string);
     RUN_TEST(test_key_empty_string);
     RUN_TEST(test_key_case_sensitive);

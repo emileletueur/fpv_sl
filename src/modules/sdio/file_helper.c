@@ -39,6 +39,9 @@ static uint32_t g_audio_bytes_written = 0;
 #define DEFAULT_RCD_FILE_NAME             "rec"
 #define DEFAULT_DEL_ON_MULTIPLE_ENABLE    false
 #define DEFAULT_MAX_RCD_DURATION          300   /* 5 min ≈ 1 lipo */
+#define DEFAULT_USE_UART_MSP              false
+#define DEFAULT_MSP_UART_ID               1
+#define DEFAULT_MSP_BAUD_RATE             115200
 
 static void apply_defaults(void) {
     fpv_sl_config.always_rcd                 = DEFAULT_ALWAYS_RCD;
@@ -52,6 +55,9 @@ static void apply_defaults(void) {
     fpv_sl_config.next_file_name_index       = DEFAULT_NEXT_FILE_NAME_INDEX;
     fpv_sl_config.delete_on_multiple_enable_tick = DEFAULT_DEL_ON_MULTIPLE_ENABLE;
     fpv_sl_config.max_rcd_duration               = DEFAULT_MAX_RCD_DURATION;
+    fpv_sl_config.use_uart_msp                   = DEFAULT_USE_UART_MSP;
+    fpv_sl_config.msp_uart_id                    = DEFAULT_MSP_UART_ID;
+    fpv_sl_config.msp_baud_rate                  = DEFAULT_MSP_BAUD_RATE;
     strncpy(s_rcd_folder,    DEFAULT_RCD_FOLDER,    sizeof(s_rcd_folder) - 1);
     strncpy(s_rcd_file_name, DEFAULT_RCD_FILE_NAME, sizeof(s_rcd_file_name) - 1);
     fpv_sl_config.rcd_folder    = s_rcd_folder;
@@ -79,7 +85,10 @@ static int8_t write_default_conf(void) {
         RCD_FOLDER                " %s\n"
         RCD_FILE_NAME             " %s\n"
         DEL_ON_MULTIPLE_ENABLE_TICK " %s\n"
-        MAX_RCD_DURATION            " %u\n",
+        MAX_RCD_DURATION            " %u\n"
+        USE_UART_MSP                " %s\n"
+        MSP_UART_ID                 " %u\n"
+        MSP_BAUD_RATE               " %lu\n",
         DEFAULT_ALWAYS_RCD             ? "true" : "false",
         DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
         DEFAULT_MIC_GAIN,
@@ -92,7 +101,10 @@ static int8_t write_default_conf(void) {
         DEFAULT_RCD_FOLDER,
         DEFAULT_RCD_FILE_NAME,
         DEFAULT_DEL_ON_MULTIPLE_ENABLE ? "true" : "false",
-        DEFAULT_MAX_RCD_DURATION);
+        DEFAULT_MAX_RCD_DURATION,
+        DEFAULT_USE_UART_MSP           ? "true" : "false",
+        DEFAULT_MSP_UART_ID,
+        (unsigned long)DEFAULT_MSP_BAUD_RATE);
     if (len < 0 || (size_t)len >= sizeof(buf)) {
         LOGE("write_default_conf: snprintf overflow.");
         f_close(&file_p);
@@ -170,6 +182,12 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_DEL_ON_MULTIPLE_ENABLE_TICK;
     if (strcmp(key, MAX_RCD_DURATION) == 0)
         return KEY_MAX_RCD_DURATION;
+    if (strcmp(key, USE_UART_MSP) == 0)
+        return KEY_USE_UART_MSP;
+    if (strcmp(key, MSP_UART_ID) == 0)
+        return KEY_MSP_UART_ID;
+    if (strcmp(key, MSP_BAUD_RATE) == 0)
+        return KEY_MSP_BAUD_RATE;
     return KEY_UNKNOWN;
 }
 
@@ -370,6 +388,15 @@ int8_t read_conf_file(void) {
             break;
         case KEY_MAX_RCD_DURATION:
             fpv_sl_config.max_rcd_duration = parse_uint16(conf_item.value);
+            break;
+        case KEY_USE_UART_MSP:
+            fpv_sl_config.use_uart_msp = parse_bool(conf_item.value);
+            break;
+        case KEY_MSP_UART_ID:
+            fpv_sl_config.msp_uart_id = parse_uint8(conf_item.value);
+            break;
+        case KEY_MSP_BAUD_RATE:
+            fpv_sl_config.msp_baud_rate = parse_uint32(conf_item.value);
             break;
         case KEY_UNKNOWN:
             break;

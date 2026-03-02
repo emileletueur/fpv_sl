@@ -36,6 +36,7 @@ The output binary is `src/build/fpv_sl_loader.uf2` (and `.elf`).
 
 - **Commits** : pas de mention "Claude" ni de ligne `Co-Authored-By` dans les messages de commit.
 - Messages courts, impératifs, français ou anglais (les deux sont utilisés dans ce repo).
+- **À chaque implémentation** : mettre à jour ce fichier si l'architecture ou les conventions évoluent (section concernée + TODO), et ajouter ou mettre à jour les tests host Unity si la logique est testable sur PC.
 
 ### Architecture — règle d'orchestration
 
@@ -204,7 +205,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
   - **LED probe debug (onboard GP25)** : 3 flashs courts répétés en boucle — le motif de clignotement reflète les 3 impulsions qui ont déclenché l'action.
 - [ ] **Filtre passe-bas + passe-bande** — ajouter un filtre passe-bas IIR symétrique au passe-haut existant (`process_sample`) pour obtenir un passe-bande configurable (ex. 200 Hz – 8 kHz). Fréquence de coupure haute à exposer dans `default.conf`.
 - [ ] **Gain automatique (AGC)** — étudier un contrôle automatique de gain pour normaliser le niveau du signal selon l'amplitude mesurée sur fenêtre glissante.
-- [ ] **[MSP 1/5] Clé de config `use_uart_msp`** — nouvelle clé dans `default.conf` + `fpv_sl_conf_t` (bool + numéro UART + baud rate). Prérequis pour tous les items MSP/MAVLink suivants.
+- [x] **[MSP 1/5] Clé de config `use_uart_msp`** — `use_uart_msp` (bool), `msp_uart_id` (uint8), `msp_baud_rate` (uint32) dans `fpv_sl_conf_t` + parser + defaults (false / UART1 / 115200). Documenté dans README.
 - [ ] **[MSP 2/5] Polling MSP ARM trigger** — init UART dédié, parser MSP minimal (`MSP_STATUS` cmd 101 uniquement). Machine d'état 2 phases : 100 Hz en idle (latence arm ≤ 10 ms) → 30 Hz en recording. Déclenche l'enregistrement I2S DMA en remplacement ou complément des GPIO ENABLE/RECORD. Synchro avec la vidéo DJI par le même événement arm FC.
 - [ ] **[MSP 3/5] Struct télémétrie `fpv_sl_telemetry_t`** — struct binaire fixe timestampée (`uint32_t ms`) : RC channels 4 sticks + AUX (uint16 ×N), attitude roll/pitch/yaw (int16 ×3), GPS fix/lat/lon/alt/speed, analog tension/mAh/RSSI/ampères. Format binaire compact, fichier `.tlm` sur SD corrélable avec l'audio par timestamp.
 - [ ] **[MSP 4/5] Valorisation MSP de la struct** — étendre le polling 30 Hz avec `MSP_RC` (105) + `MSP_ATTITUDE` (108) + `MSP_RAW_GPS` (106) + `MSP_ANALOG` (110) → remplissage `fpv_sl_telemetry_t` → écriture SD bufferisée pour ne pas bloquer Core 0. ~145 bytes/cycle × 30 Hz = ~4 kB/s.
