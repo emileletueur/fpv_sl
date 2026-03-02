@@ -27,7 +27,6 @@ typedef struct {
 const fpv_sl_conf_t *get_conf(void);
 bool read_line(char *buff, uint32_t buff_len, FIL *file_p);
 int8_t read_conf_file(void);
-int read_config_file(void);
 int8_t create_wav_file(void);
 int8_t finalize_wav_file(uint32_t rcd_duration);
 int8_t write_buffer(uint32_t *buff);

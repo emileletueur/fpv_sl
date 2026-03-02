@@ -193,7 +193,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [ ] **Implémenter `fpv_sl_process_mode()`** — les 3 modes (`ALWAY_RCD_TYPE`, `RCD_ONLY_TYPE`, `CLASSIC_TYPE`) sont encore des stubs commentés dans `fpv_sl_core.c`. C'est le chantier principal.
 - [ ] **Câbler `update_disk_status()`** — le marqueur est déjà en place dans les commentaires de `fpv_sl_process_mode`. À activer quand les modes seront implémentés.
 - [x] **Migrer `test_recording_mode.c` en host test** — `src/tests/host/test_recording_mode.c`, 5 tests Unity, mêmes dépendances que `test_dsp_filter` (`fpv_sl_core.c` + `pico_stubs.c`).
-- [ ] **Vérifier / supprimer `read_config_file`** — `file_helper.h` déclare à la fois `read_conf_file` et `read_config_file`. L'une des deux semble être un doublon ou du code mort.
+- [x] **Vérifier / supprimer `read_config_file`** — déclaration supprimée de `file_helper.h`, `src/utils/cpcpy.txt` (brouillon de prototypage) supprimé.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
 - [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.
 - [x] **Pré-allocation WAV via `f_expand()`** — implémenté avec fallback, checkpoint header dans `sync_wav_file()`, truncate dans `finalize_wav_file()` et `recover_unfinalized_recording()`. Clé `MAX_RCD_DURATION` ajoutée (défaut 300 s). Voir section *WAV file lifecycle* dans Architecture.
