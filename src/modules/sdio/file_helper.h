@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ff.h"
-#include "file_helper.h"
 #include "fpv_sl_config.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -24,6 +23,7 @@ typedef struct {
 } wav_header_t;
 #pragma pack(pop)
 
+const char *get_fresult_str(FRESULT res);
 const fpv_sl_conf_t *get_conf(void);
 bool read_line(char *buff, uint32_t buff_len, FIL *file_p);
 int8_t read_conf_file(void);
