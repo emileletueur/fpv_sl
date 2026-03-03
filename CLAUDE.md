@@ -190,8 +190,8 @@ Les stubs sont dans `src/tests/stubs/` : headers inline (`pico/`, `ff.h`) et `pi
 
 Mettre à jour cette section à chaque fin de session. Cocher / supprimer une ligne quand c'est fait.
 
-- [ ] **Implémenter `fpv_sl_process_mode()`** — les 3 modes (`ALWAY_RCD_TYPE`, `RCD_ONLY_TYPE`, `CLASSIC_TYPE`) sont encore des stubs commentés dans `fpv_sl_core.c`. C'est le chantier principal.
-- [ ] **Câbler `update_disk_status()`** — le marqueur est déjà en place dans les commentaires de `fpv_sl_process_mode`. À activer quand les modes seront implémentés.
+- [x] **Implémenter `fpv_sl_process_mode()`** — 3 boucles réelles implémentées (`ALWAY_RCD_TYPE`, `RCD_ONLY_TYPE`, `CLASSIC_TYPE`). `multicore_launch_core1` déplacé au début de `fpv_sl_process_mode`. `fpv_sl_core0_loop` gère la durée max via `g_max_record_ms`. `gpio_interface` étendu à 4 callbacks (RISE+FALL sur les deux pins FC). `update_disk_status()` câblé après chaque `finalize_wav_file()`.
+- [x] **Câbler `update_disk_status()`** — appelé après chaque `finalize_wav_file()` dans les 3 modes.
 - [x] **Migrer `test_recording_mode.c` en host test** — `src/tests/host/test_recording_mode.c`, 5 tests Unity, mêmes dépendances que `test_dsp_filter` (`fpv_sl_core.c` + `pico_stubs.c`).
 - [x] **Vérifier / supprimer `read_config_file`** — déclaration supprimée de `file_helper.h`, `src/utils/cpcpy.txt` (brouillon de prototypage) supprimé.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
