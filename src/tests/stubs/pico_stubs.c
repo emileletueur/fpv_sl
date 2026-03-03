@@ -16,6 +16,8 @@ uint32_t multicore_fifo_pop_blocking(void) { return 0; }
 bool             is_data_ready(void)          { return false; }
 volatile int32_t *get_active_buffer_ptr(void) { return NULL; }
 uint32_t         get_current_data_count(void) { return 0; }
+int8_t           i2s_mic_start(void)          { return 0; }
+int8_t           i2s_mic_stop(void)           { return 0; }
 
 /* ── sdio / file_helper ─────────────────────────────────────────────────── */
 

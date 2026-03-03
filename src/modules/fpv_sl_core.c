@@ -2,13 +2,14 @@
 
 #include "fpv_sl_core.h"
 #include "audio_buffer.h"
-#include "pico/mutex.h"
+#include "debug_log.h"
 #include "file_helper.h"
 #include "i2s_mic.h"
+#include "pico/mutex.h"
 #include "status_indicator.h"
-#include "debug_log.h"
 #include <pico/multicore.h>
 #include <stdint.h>
+
 
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
 hp_filter_t filter_L = {0.959f, 0, 0}; // Alpha pour ~300Hz à 44.1kHz
@@ -24,10 +25,20 @@ static execution_condition_t execution_condition;
 
 static audio_pipeline_t g_audio_pipeline;
 
-// Flag d'arrêt propre
-static volatile bool g_recording = false;
+/* Flags positionnés par les callbacks GPIO (ou MSP à terme).
+   Lus dans fpv_sl_process_mode() — écriture depuis IRQ uniquement. */
+static volatile bool g_enabled   = false; /* ENABLE pin reçu (CLASSIC_TYPE) */
+static volatile bool g_recording = false; /* ARM/RECORD pin reçu → écriture SD active */
 
+int8_t fpv_sl_on_enable(void) {
+    g_enabled = true;
+    return 0;
+}
 
+int8_t fpv_sl_on_record(void) {
+    g_recording = true;
+    return 0;
+}
 
 /* Lit l'espace disque et met à jour la LED en conséquence.
    À appeler après chaque finalize_wav_file(). */
@@ -63,8 +74,17 @@ uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
 }
 
 void fpv_sl_process_mode(void) {
+    /* Démarrage I2S anticipé : DMA actif avant le trigger ARM,
+       ring buffer déjà rempli → zéro latence au premier write SD. */
+    i2s_mic_start();
+
     switch (execution_condition) {
     case CLASSIC_TYPE:
+
+        // Starting I2S and fill buffer ensure a quick record without latency
+        i2s_mic_start();
+
+
         // Setup temporary file to write
         // waiting for ENABLE trigger to start I2S DMA
         // set LED indicator
@@ -119,11 +139,11 @@ void fpv_sl_core0_loop(void) {
         }
 
         // Envoyer le bloc au Core 1 pour filtrage
-        multicore_fifo_push_blocking((uint32_t)get_active_buffer_ptr());
+        multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
         // Récupérer l'adresse du bloc filtré
         uint32_t filtered_addr = multicore_fifo_pop_blocking();
         // Écrire sur SD
-        write_buffer((uint32_t *)filtered_addr);
+        write_buffer((uint32_t *) filtered_addr);
 
         blocks_since_sync++;
         if (blocks_since_sync >= SYNC_PERIOD_BLOCKS) {
