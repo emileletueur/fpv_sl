@@ -5,17 +5,23 @@
 
 /* ── Flags positionnés par les callbacks ───────────────────────── */
 
-static volatile bool enable_cb_called = false;
-static volatile bool record_cb_called = false;
+static volatile bool enable_cb_called  = false;
+static volatile bool disable_cb_called = false;
+static volatile bool record_cb_called  = false;
+static volatile bool disarm_cb_called  = false;
 
-static int8_t enable_cb(void) { enable_cb_called = true;  return 0; }
-static int8_t record_cb(void) { record_cb_called = true;  return 0; }
+static int8_t enable_cb(void)  { enable_cb_called  = true; return 0; }
+static int8_t disable_cb(void) { disable_cb_called = true; return 0; }
+static int8_t record_cb(void)  { record_cb_called  = true; return 0; }
+static int8_t disarm_cb(void)  { disarm_cb_called  = true; return 0; }
 
 /* ── Helpers ────────────────────────────────────────────────────── */
 
 static void reset_flags(void) {
-    enable_cb_called = false;
-    record_cb_called = false;
+    enable_cb_called  = false;
+    disable_cb_called = false;
+    record_cb_called  = false;
+    disarm_cb_called  = false;
 }
 
 /* Génère un front montant propre sur le simulateur ENABLE :
@@ -96,20 +102,20 @@ void test_sequence_enable_then_record(void) {
 
 /* Callbacks NULL → IRQ déclenché mais pas de crash (log attendu) */
 void test_null_callbacks_no_crash(void) {
-    initialize_gpio_interface(NULL, NULL);
+    initialize_gpio_interface(NULL, NULL, NULL, NULL);
     reset_flags();
     rising_edge_enable();
     rising_edge_record();
     /* Aucun callback appelé, aucun crash : test passé si on arrive ici */
     pins_low();
     /* Restore pour les tests éventuellement lancés après */
-    initialize_gpio_interface(enable_cb, record_cb);
+    initialize_gpio_interface(enable_cb, disable_cb, record_cb, disarm_cb);
 }
 
 /* ── Suite entry point ─────────────────────────────────────────── */
 
 void run_gpio_tests(void) {
-    initialize_gpio_interface(enable_cb, record_cb);
+    initialize_gpio_interface(enable_cb, disable_cb, record_cb, disarm_cb);
     LOGI("── GPIO interface tests ──────────────────────");
     RUN_TEST(test_enable_callback_called);
     RUN_TEST(test_record_callback_called);

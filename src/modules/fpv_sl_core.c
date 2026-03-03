@@ -6,10 +6,10 @@
 #include "file_helper.h"
 #include "i2s_mic.h"
 #include "pico/mutex.h"
+#include "pico/time.h"
 #include "status_indicator.h"
 #include <pico/multicore.h>
 #include <stdint.h>
-
 
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
 hp_filter_t filter_L = {0.959f, 0, 0}; // Alpha pour ~300Hz à 44.1kHz
@@ -27,18 +27,18 @@ static audio_pipeline_t g_audio_pipeline;
 
 /* Flags positionnés par les callbacks GPIO (ou MSP à terme).
    Lus dans fpv_sl_process_mode() — écriture depuis IRQ uniquement. */
-static volatile bool g_enabled   = false; /* ENABLE pin reçu (CLASSIC_TYPE) */
+static volatile bool g_enabled = false;   /* ENABLE pin reçu (CLASSIC_TYPE) */
 static volatile bool g_recording = false; /* ARM/RECORD pin reçu → écriture SD active */
 
-int8_t fpv_sl_on_enable(void) {
-    g_enabled = true;
-    return 0;
-}
+/* Durée max pour ALWAY_RCD_TYPE (ms). 0 = pas de limite (RCD_ONLY / CLASSIC). */
+static uint32_t g_max_record_ms = 0;
 
-int8_t fpv_sl_on_record(void) {
-    g_recording = true;
-    return 0;
-}
+int8_t fpv_sl_on_enable(void)  { g_enabled = true;              return 0; }
+int8_t fpv_sl_on_disable(void) { g_enabled = false;
+                                  g_recording = false; /* stoppe l'enregistrement si actif */
+                                  return 0; }
+int8_t fpv_sl_on_record(void)  { g_recording = true;            return 0; }
+int8_t fpv_sl_on_disarm(void)  { g_recording = false;           return 0; }
 
 /* Lit l'espace disque et met à jour la LED en conséquence.
    À appeler après chaque finalize_wav_file(). */
@@ -74,42 +74,86 @@ uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
 }
 
 void fpv_sl_process_mode(void) {
+    multicore_launch_core1(fpv_sl_core1_loop);
+
     /* Démarrage I2S anticipé : DMA actif avant le trigger ARM,
        ring buffer déjà rempli → zéro latence au premier write SD. */
-    i2s_mic_start();
-
-    switch (execution_condition) {
-    case CLASSIC_TYPE:
-
-        // Starting I2S and fill buffer ensure a quick record without latency
+    if (execution_condition != CLASSIC_TYPE)
         i2s_mic_start();
 
+    switch (execution_condition) {
 
-        // Setup temporary file to write
-        // waiting for ENABLE trigger to start I2S DMA
-        // set LED indicator
-        // waiting for ARM trigger to write sound data
-        // set LED indicator
-        // Record until DESARM
-        // set LED indicator
-        // Finalize with WAV header
-        // Rename file with final computed name
-        // Update file index in conf file
-    case RCD_ONLY_TYPE:
-        // Setup temporary file to write and start I2S DMA
-        // waiting for ARM trigger to write sound data
-        // Record until DESARM
-        // Finalize with WAV header
-        // Rename file with final computed name
-        // Update file index in conf file
     case ALWAY_RCD_TYPE:
-        // Setup temporary file to write
-        // start I2S DMA
-        // Record until DESARM
-        // finalize_wav_file(rcd_duration);
-        // update_disk_status();   ← check espace après chaque fichier
-        // Rename file with final computed name
-        // Update file index in conf file
+        /* Enregistrement continu, découpé en fichiers de max_rcd_duration s. */
+        g_max_record_ms = (uint32_t)fpv_sl_conf->max_rcd_duration * 1000UL;
+        LOGI("ALWAY_RCD — max file duration %lu ms.", g_max_record_ms);
+        while (1) {
+            create_wav_file();
+            set_module_recording_status();
+            g_recording = true;
+            uint32_t start_ms = to_ms_since_boot(get_absolute_time());
+            fpv_sl_core0_loop();
+            uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
+            LOGI("ALWAY_RCD — file closed, duration %lu ms.", duration_ms);
+            finalize_wav_file(duration_ms);
+            update_disk_status();
+        }
+        break;
+
+    case RCD_ONLY_TYPE:
+        /* I2S déjà démarré. Pré-crée le fichier pour réduire la latence au ARM. */
+        LOGI("RCD_ONLY — attente ARM.");
+        create_wav_file();
+        set_module_record_ready_status();
+        while (1) {
+            while (!g_recording)
+                tight_loop_contents();
+            set_module_recording_status();
+            LOGI("RCD_ONLY — ARM reçu, début enregistrement.");
+            uint32_t start_ms = to_ms_since_boot(get_absolute_time());
+            fpv_sl_core0_loop();
+            uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
+            LOGI("RCD_ONLY — DISARM reçu, durée %lu ms.", duration_ms);
+            finalize_wav_file(duration_ms);
+            update_disk_status();
+            create_wav_file();
+            set_module_record_ready_status();
+        }
+        break;
+
+    case CLASSIC_TYPE:
+        /* I2S démarré à ENABLE uniquement. Boucle ENABLE → ARM/DISARM → DISABLE. */
+        LOGI("CLASSIC — attente ENABLE.");
+        while (1) {
+            while (!g_enabled)
+                tight_loop_contents();
+            LOGI("CLASSIC — ENABLE reçu, démarrage I2S.");
+            i2s_mic_start();
+            create_wav_file();
+            set_module_record_ready_status();
+
+            while (g_enabled) {
+                while (g_enabled && !g_recording)
+                    tight_loop_contents();
+                if (!g_enabled)
+                    break;
+                set_module_recording_status();
+                LOGI("CLASSIC — ARM reçu, début enregistrement.");
+                uint32_t start_ms = to_ms_since_boot(get_absolute_time());
+                fpv_sl_core0_loop();
+                uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
+                LOGI("CLASSIC — DISARM reçu, durée %lu ms.", duration_ms);
+                finalize_wav_file(duration_ms);
+                update_disk_status();
+                if (g_enabled) {
+                    create_wav_file();
+                    set_module_record_ready_status();
+                }
+            }
+
+            LOGI("CLASSIC — DISABLE reçu, arrêt I2S.");
+            i2s_mic_stop();
+        }
         break;
     }
 }
@@ -129,26 +173,29 @@ int32_t process_sample(hp_filter_t *f, int32_t sample) {
 }
 
 void fpv_sl_core0_loop(void) {
-    multicore_launch_core1(fpv_sl_core1_loop);
-
     uint32_t blocks_since_sync = 0;
+    uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
 
     while (g_recording) {
         if (!is_data_ready()) {
+            tight_loop_contents();
             continue;
         }
 
-        // Envoyer le bloc au Core 1 pour filtrage
         multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
-        // Récupérer l'adresse du bloc filtré
         uint32_t filtered_addr = multicore_fifo_pop_blocking();
-        // Écrire sur SD
         write_buffer((uint32_t *) filtered_addr);
 
         blocks_since_sync++;
         if (blocks_since_sync >= SYNC_PERIOD_BLOCKS) {
             sync_wav_file();
             blocks_since_sync = 0;
+        }
+
+        if (g_max_record_ms > 0) {
+            uint32_t elapsed = to_ms_since_boot(get_absolute_time()) - start_ms;
+            if (elapsed >= g_max_record_ms)
+                g_recording = false;
         }
     }
 }
@@ -177,29 +224,4 @@ void fpv_sl_core1_loop(void) {
 
         multicore_fifo_push_blocking(addr);
     }
-
-    // while (1) {
-    //     // Attend l'adresse du buffer rempli par le DMA
-    //     uint32_t addr = multicore_fifo_pop_blocking();
-    //     int32_t *samples = (int32_t *)addr;
-
-    //     if (MONO_MODE) {
-    //         // COMPACTION : On ne garde que le canal GAUCHE (indices pairs)
-    //         int j = 0;
-    //         for (int i = 0; i < BUFFER_SIZE; i += 2) {
-    //             samples[j] = process_sample(samples[i], &filter_L);
-    //             j++;
-    //         }
-    //         // Ici, les BUFFER_SIZE/2 premiers slots du buffer sont remplis
-    //     } else {
-    //         // MODE STEREO : On traite les deux (ou on traite G et on laisse D à 0)
-    //         for (int i = 0; i < BUFFER_SIZE; i += 2) {
-    //             samples[i]   = process_sample(samples[i], &filter_L);
-    //             samples[i+1] = 0; // On peut mettre le canal droit à 0 si micro mono
-    //         }
-    //     }
-
-    //     // On renvoie l'adresse au Coeur 0 pour dire "C'est prêt pour la SD"
-    //     multicore_fifo_push_blocking(addr);
-    // }
 }

@@ -24,4 +24,6 @@ int32_t apply_filter_and_gain(hp_filter_t *f, int32_t sample);
 /* Callbacks GPIO — à passer à initialize_gpio_interface().
    Positionnent les flags internes de fpv_sl_core ; ne font aucun accès SD ni I2S. */
 int8_t fpv_sl_on_enable(void);
+int8_t fpv_sl_on_disable(void);
 int8_t fpv_sl_on_record(void);
+int8_t fpv_sl_on_disarm(void);

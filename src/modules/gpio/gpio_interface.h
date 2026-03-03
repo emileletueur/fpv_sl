@@ -22,7 +22,10 @@
 #endif
 
 typedef int8_t (*gpio_trigger_callback_t)(void);
-void initialize_gpio_interface(gpio_trigger_callback_t enable_callback, gpio_trigger_callback_t record_callback);
+void initialize_gpio_interface(gpio_trigger_callback_t enable_callback,
+                               gpio_trigger_callback_t disable_callback,
+                               gpio_trigger_callback_t record_callback,
+                               gpio_trigger_callback_t disarm_callback);
 
 #ifdef FPV_SL_PICO_PROBE_DEBUG
 // Positionne l'état de GP8 (simulateur ENABLE → GP2).

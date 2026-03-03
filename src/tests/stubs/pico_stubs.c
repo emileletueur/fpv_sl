@@ -21,9 +21,11 @@ int8_t           i2s_mic_stop(void)           { return 0; }
 
 /* ── sdio / file_helper ─────────────────────────────────────────────────── */
 
-int8_t write_buffer(uint32_t *buff)              { (void)buff; return 0; }
-int8_t sync_wav_file(void)                       { return 0; }
-int8_t get_disk_usage_percent(uint8_t *out_pct)  { if (out_pct) *out_pct = 0; return 0; }
+int8_t write_buffer(uint32_t *buff)                      { (void)buff; return 0; }
+int8_t sync_wav_file(void)                               { return 0; }
+int8_t create_wav_file(void)                             { return 0; }
+int8_t finalize_wav_file(uint32_t rcd_duration)          { (void)rcd_duration; return 0; }
+int8_t get_disk_usage_percent(uint8_t *out_pct)          { if (out_pct) *out_pct = 0; return 0; }
 
 /* ── status_indicator ───────────────────────────────────────────────────── */
 

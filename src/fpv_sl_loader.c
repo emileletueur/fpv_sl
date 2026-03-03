@@ -86,9 +86,9 @@ int main() {
 
             // Initialize Flight Controller GPIO interface
             // Dans le cas où on utilise les GPIO
-            initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_record);
+            initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_disable, fpv_sl_on_record, fpv_sl_on_disarm);
             // Ou via UART avec protocole MSP
-            // initialize_msp_interface(fpv_sl_on_enable, fpv_sl_on_record);
+            // initialize_msp_interface(fpv_sl_on_enable, fpv_sl_on_disable, fpv_sl_on_record, fpv_sl_on_disarm);
 
             // Determine execution mode
             get_mode_from_config(conf);
