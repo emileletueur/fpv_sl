@@ -83,6 +83,7 @@ int main() {
             i2s_mic_t i2s_mic_conf = {
                 .sample_rate = conf->sample_rate, .is_mono = conf->is_mono_rcd, .buffer_size = 2048};
             init_i2s_mic(&i2s_mic_conf);
+            i2s_mic_start();
 
             // Initialize Flight Controller GPIO interface
             initialize_gpio_interface(i2s_mic_start, i2s_mic_stop);
