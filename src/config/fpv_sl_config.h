@@ -7,18 +7,18 @@
 #define CONFIG_BASE_DIR "0:/"
 #define CONFIG_FILE_NAME "default.conf"
 #define USE_ENABLE_PIN "USE_ENABLE_PIN"
-#define ALWAYS_RCD "ALWAYS_RCD"
+#define RECORD_ON_BOOT "RECORD_ON_BOOT"
 #define MIC_GAIN "MIC_GAIN"
 #define USE_HIGH_PASS_FILTER "USE_HIGH_PASS_FILTER"
 #define HIGH_PASS_CUTOFF_FREQ "HIGH_PASS_CUTOFF_FREQ"
 #define SAMPLE_RATE "SAMPLE_RATE"
 #define BUFFER_SIZE "BUFFER_SIZE"
-#define IS_MONO_RCD "IS_MONO_RCD"
-#define NEXT_FILE_NAME_INDEX "NEXT_FILE_NAME_INDEX"
-#define RCD_FOLDER "RCD_FOLDER"
-#define RCD_FILE_NAME "RCD_FILE_NAME"
-#define DEL_ON_MULTIPLE_ENABLE_TICK "DEL_ON_MULTIPLE_ENABLE_TICK"
-#define MAX_RCD_DURATION "MAX_RCD_DURATION"
+#define MONO_RECORD "MONO_RECORD"
+#define FILE_INDEX "FILE_INDEX"
+#define RECORD_FOLDER "RECORD_FOLDER"
+#define RECORD_PREFIX "RECORD_PREFIX"
+#define DELETE_ON_TRIPLE_ARM "DELETE_ON_TRIPLE_ARM"
+#define MAX_RECORD_DURATION "MAX_RECORD_DURATION"
 #define USE_UART_MSP "USE_UART_MSP"
 #define MSP_UART_ID "MSP_UART_ID"
 #define MSP_BAUD_RATE "MSP_BAUD_RATE"
@@ -33,18 +33,18 @@ typedef struct {
 typedef enum {
     KEY_UNKNOWN = 0,
     KEY_USE_ENABLE_PIN,
-    KEY_ALWAYS_RCD,
+    KEY_RECORD_ON_BOOT,
     KEY_MIC_GAIN,
     KEY_USE_HIGH_PASS_FILTER,
     KEY_HIGH_PASS_CUTOFF_FREQ,
     KEY_SAMPLE_RATE,
     KEY_BUFFER_SIZE,
-    KEY_IS_MONO_RCD,
-    KEY_NEXT_FILE_NAME_INDEX,
-    KEY_RCD_FOLDER,
-    KEY_RCD_FILE_NAME,
-    KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
-    KEY_MAX_RCD_DURATION,
+    KEY_MONO_RECORD,
+    KEY_FILE_INDEX,
+    KEY_RECORD_FOLDER,
+    KEY_RECORD_PREFIX,
+    KEY_DELETE_ON_TRIPLE_ARM,
+    KEY_MAX_RECORD_DURATION,
     KEY_USE_UART_MSP,
     KEY_MSP_UART_ID,
     KEY_MSP_BAUD_RATE,
@@ -53,18 +53,18 @@ typedef enum {
 typedef struct {
     bool conf_is_loaded;
     bool use_enable_pin;           // record only be triggerd by arm/desarm pin
-    bool always_rcd;               // record as soon as module is powered
+    bool record_on_boot;               // record as soon as module is powered
     uint8_t mic_gain;              // use to tune mic gain
     bool use_high_pass_filter;     // use the low pass filter
     uint8_t high_pass_cutoff_freq; // the cutoff frequency of numeric low pass filter
     uint16_t sample_rate;          // i2s rcd sample rate
     uint16_t buffer_size;          // i2s buffer size
-    bool is_mono_rcd;          // i2s rcd sample rate
-    uint16_t next_file_name_index; // the index used in file name to ensure unicity
-    char *rcd_folder;
-    char *rcd_file_name;
-    bool delete_on_multiple_enable_tick;
-    uint16_t max_rcd_duration;  /* durée max d'enregistrement en secondes (pré-allocation) */
+    bool mono_record;          // i2s rcd sample rate
+    uint16_t file_index; // the index used in file name to ensure unicity
+    char *record_folder;
+    char *record_prefix;
+    bool delete_on_triple_arm;
+    uint16_t max_record_duration;  /* durée max d'enregistrement en secondes (pré-allocation) */
     bool     use_uart_msp;      /* active le polling MSP via UART pour le trigger ARM */
     uint8_t  msp_uart_id;       /* UART Pico utilisé pour MSP : 0 ou 1 */
     uint32_t msp_baud_rate;     /* baud rate MSP : 115200 / 230400 / 460800 */

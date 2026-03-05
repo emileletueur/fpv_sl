@@ -17,27 +17,27 @@ void test_conf_not_loaded_returns_error(void) {
     TEST_ASSERT_NOT_EQUAL(0, (int)get_mode_from_config(&conf));
 }
 
-/* always_rcd = true → ALWAY_RCD_TYPE */
-void test_mode_always_rcd(void) {
-    fpv_sl_conf_t conf = {.conf_is_loaded = true, .always_rcd = true, .use_enable_pin = false};
+/* record_on_boot = true → ALWAY_RCD_TYPE */
+void test_mode_record_on_boot(void) {
+    fpv_sl_conf_t conf = {.conf_is_loaded = true, .record_on_boot = true, .use_enable_pin = false};
     TEST_ASSERT_EQUAL(0, (int)get_mode_from_config(&conf));
 }
 
-/* always_rcd = false, use_enable_pin = false → RCD_ONLY_TYPE */
+/* record_on_boot = false, use_enable_pin = false → RCD_ONLY_TYPE */
 void test_mode_rcd_only(void) {
-    fpv_sl_conf_t conf = {.conf_is_loaded = true, .always_rcd = false, .use_enable_pin = false};
+    fpv_sl_conf_t conf = {.conf_is_loaded = true, .record_on_boot = false, .use_enable_pin = false};
     TEST_ASSERT_EQUAL(0, (int)get_mode_from_config(&conf));
 }
 
-/* always_rcd = false, use_enable_pin = true → CLASSIC_TYPE */
+/* record_on_boot = false, use_enable_pin = true → CLASSIC_TYPE */
 void test_mode_classic(void) {
-    fpv_sl_conf_t conf = {.conf_is_loaded = true, .always_rcd = false, .use_enable_pin = true};
+    fpv_sl_conf_t conf = {.conf_is_loaded = true, .record_on_boot = false, .use_enable_pin = true};
     TEST_ASSERT_EQUAL(0, (int)get_mode_from_config(&conf));
 }
 
-/* always_rcd prioritaire sur use_enable_pin */
-void test_always_rcd_overrides_enable_pin(void) {
-    fpv_sl_conf_t conf = {.conf_is_loaded = true, .always_rcd = true, .use_enable_pin = true};
+/* record_on_boot prioritaire sur use_enable_pin */
+void test_record_on_boot_overrides_enable_pin(void) {
+    fpv_sl_conf_t conf = {.conf_is_loaded = true, .record_on_boot = true, .use_enable_pin = true};
     TEST_ASSERT_EQUAL(0, (int)get_mode_from_config(&conf));
 }
 
@@ -80,10 +80,10 @@ void test_clear_delete_request_works(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_conf_not_loaded_returns_error);
-    RUN_TEST(test_mode_always_rcd);
+    RUN_TEST(test_mode_record_on_boot);
     RUN_TEST(test_mode_rcd_only);
     RUN_TEST(test_mode_classic);
-    RUN_TEST(test_always_rcd_overrides_enable_pin);
+    RUN_TEST(test_record_on_boot_overrides_enable_pin);
     RUN_TEST(test_triple_trigger_sets_flag);
     RUN_TEST(test_two_triggers_no_flag);
     RUN_TEST(test_window_expiry_resets_counter);

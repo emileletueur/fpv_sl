@@ -17,8 +17,8 @@ FATFS fatfs_mount_p;
 FIL file_p;
 
 static fpv_sl_conf_t fpv_sl_config  = {.conf_is_loaded = false};
-static char          s_rcd_folder[64]    = {0};
-static char          s_rcd_file_name[64] = {0};
+static char          s_record_folder[64]    = {0};
+static char          s_record_prefix[64] = {0};
 
 /* État de la pré-allocation en cours d'enregistrement. */
 static bool     g_prealloc_active     = false;
@@ -26,42 +26,42 @@ static uint32_t g_audio_bytes_written = 0;
 
 /* ── Valeurs par défaut ──────────────────────────────────────────────────── */
 
-#define DEFAULT_ALWAYS_RCD                true
+#define DEFAULT_RECORD_ON_BOOT                true
 #define DEFAULT_USE_ENABLE_PIN            false
 #define DEFAULT_MIC_GAIN                  1
 #define DEFAULT_USE_HIGH_PASS_FILTER      true
 #define DEFAULT_HIGH_PASS_CUTOFF_FREQ     200
 #define DEFAULT_SAMPLE_RATE               44100
 #define DEFAULT_BUFFER_SIZE               256
-#define DEFAULT_IS_MONO_RCD               true
-#define DEFAULT_NEXT_FILE_NAME_INDEX      0
-#define DEFAULT_RCD_FOLDER                ""
-#define DEFAULT_RCD_FILE_NAME             "rec"
-#define DEFAULT_DEL_ON_MULTIPLE_ENABLE    false
-#define DEFAULT_MAX_RCD_DURATION          300   /* 5 min ≈ 1 lipo */
+#define DEFAULT_MONO_RECORD               true
+#define DEFAULT_FILE_INDEX      0
+#define DEFAULT_RECORD_FOLDER                ""
+#define DEFAULT_RECORD_PREFIX             "rec"
+#define DEFAULT_DELETE_ON_TRIPLE_ARM    false
+#define DEFAULT_MAX_RECORD_DURATION          300   /* 5 min ≈ 1 lipo */
 #define DEFAULT_USE_UART_MSP              false
 #define DEFAULT_MSP_UART_ID               1
 #define DEFAULT_MSP_BAUD_RATE             115200
 
 static void apply_defaults(void) {
-    fpv_sl_config.always_rcd                 = DEFAULT_ALWAYS_RCD;
+    fpv_sl_config.record_on_boot                 = DEFAULT_RECORD_ON_BOOT;
     fpv_sl_config.use_enable_pin             = DEFAULT_USE_ENABLE_PIN;
     fpv_sl_config.mic_gain                   = DEFAULT_MIC_GAIN;
     fpv_sl_config.use_high_pass_filter       = DEFAULT_USE_HIGH_PASS_FILTER;
     fpv_sl_config.high_pass_cutoff_freq      = DEFAULT_HIGH_PASS_CUTOFF_FREQ;
     fpv_sl_config.sample_rate                = DEFAULT_SAMPLE_RATE;
     fpv_sl_config.buffer_size                = DEFAULT_BUFFER_SIZE;
-    fpv_sl_config.is_mono_rcd                = DEFAULT_IS_MONO_RCD;
-    fpv_sl_config.next_file_name_index       = DEFAULT_NEXT_FILE_NAME_INDEX;
-    fpv_sl_config.delete_on_multiple_enable_tick = DEFAULT_DEL_ON_MULTIPLE_ENABLE;
-    fpv_sl_config.max_rcd_duration               = DEFAULT_MAX_RCD_DURATION;
+    fpv_sl_config.mono_record                = DEFAULT_MONO_RECORD;
+    fpv_sl_config.file_index       = DEFAULT_FILE_INDEX;
+    fpv_sl_config.delete_on_triple_arm = DEFAULT_DELETE_ON_TRIPLE_ARM;
+    fpv_sl_config.max_record_duration               = DEFAULT_MAX_RECORD_DURATION;
     fpv_sl_config.use_uart_msp                   = DEFAULT_USE_UART_MSP;
     fpv_sl_config.msp_uart_id                    = DEFAULT_MSP_UART_ID;
     fpv_sl_config.msp_baud_rate                  = DEFAULT_MSP_BAUD_RATE;
-    strncpy(s_rcd_folder,    DEFAULT_RCD_FOLDER,    sizeof(s_rcd_folder) - 1);
-    strncpy(s_rcd_file_name, DEFAULT_RCD_FILE_NAME, sizeof(s_rcd_file_name) - 1);
-    fpv_sl_config.rcd_folder    = s_rcd_folder;
-    fpv_sl_config.rcd_file_name = s_rcd_file_name;
+    strncpy(s_record_folder,    DEFAULT_RECORD_FOLDER,    sizeof(s_record_folder) - 1);
+    strncpy(s_record_prefix, DEFAULT_RECORD_PREFIX, sizeof(s_record_prefix) - 1);
+    fpv_sl_config.record_folder    = s_record_folder;
+    fpv_sl_config.record_prefix = s_record_prefix;
 }
 
 static int8_t write_default_conf(void) {
@@ -73,35 +73,35 @@ static int8_t write_default_conf(void) {
     }
     char buf[512];
     int len = snprintf(buf, sizeof(buf),
-        ALWAYS_RCD                " %s\n"
+        RECORD_ON_BOOT                " %s\n"
         USE_ENABLE_PIN            " %s\n"
         MIC_GAIN                  " %u\n"
         USE_HIGH_PASS_FILTER      " %s\n"
         HIGH_PASS_CUTOFF_FREQ     " %u\n"
         SAMPLE_RATE               " %u\n"
         BUFFER_SIZE               " %u\n"
-        IS_MONO_RCD               " %s\n"
-        NEXT_FILE_NAME_INDEX      " %u\n"
-        RCD_FOLDER                " %s\n"
-        RCD_FILE_NAME             " %s\n"
-        DEL_ON_MULTIPLE_ENABLE_TICK " %s\n"
-        MAX_RCD_DURATION            " %u\n"
+        MONO_RECORD               " %s\n"
+        FILE_INDEX      " %u\n"
+        RECORD_FOLDER                " %s\n"
+        RECORD_PREFIX             " %s\n"
+        DELETE_ON_TRIPLE_ARM " %s\n"
+        MAX_RECORD_DURATION            " %u\n"
         USE_UART_MSP                " %s\n"
         MSP_UART_ID                 " %u\n"
         MSP_BAUD_RATE               " %lu\n",
-        DEFAULT_ALWAYS_RCD             ? "true" : "false",
+        DEFAULT_RECORD_ON_BOOT             ? "true" : "false",
         DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
         DEFAULT_MIC_GAIN,
         DEFAULT_USE_HIGH_PASS_FILTER   ? "true" : "false",
         DEFAULT_HIGH_PASS_CUTOFF_FREQ,
         DEFAULT_SAMPLE_RATE,
         DEFAULT_BUFFER_SIZE,
-        DEFAULT_IS_MONO_RCD            ? "true" : "false",
-        DEFAULT_NEXT_FILE_NAME_INDEX,
-        DEFAULT_RCD_FOLDER,
-        DEFAULT_RCD_FILE_NAME,
-        DEFAULT_DEL_ON_MULTIPLE_ENABLE ? "true" : "false",
-        DEFAULT_MAX_RCD_DURATION,
+        DEFAULT_MONO_RECORD            ? "true" : "false",
+        DEFAULT_FILE_INDEX,
+        DEFAULT_RECORD_FOLDER,
+        DEFAULT_RECORD_PREFIX,
+        DEFAULT_DELETE_ON_TRIPLE_ARM ? "true" : "false",
+        DEFAULT_MAX_RECORD_DURATION,
         DEFAULT_USE_UART_MSP           ? "true" : "false",
         DEFAULT_MSP_UART_ID,
         (unsigned long)DEFAULT_MSP_BAUD_RATE);
@@ -158,8 +158,8 @@ key_value_pair_t parse_conf_key_value(char *line) {
 config_key_enum_t string_to_key_enum(const char *key) {
     if (strcmp(key, USE_ENABLE_PIN) == 0)
         return KEY_USE_ENABLE_PIN;
-    if (strcmp(key, ALWAYS_RCD) == 0)
-        return KEY_ALWAYS_RCD;
+    if (strcmp(key, RECORD_ON_BOOT) == 0)
+        return KEY_RECORD_ON_BOOT;
     if (strcmp(key, MIC_GAIN) == 0)
         return KEY_MIC_GAIN;
     if (strcmp(key, USE_HIGH_PASS_FILTER) == 0)
@@ -170,18 +170,18 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_SAMPLE_RATE;
     if (strcmp(key, BUFFER_SIZE) == 0)
         return KEY_BUFFER_SIZE;
-    if (strcmp(key, IS_MONO_RCD) == 0)
-        return KEY_IS_MONO_RCD;
-    if (strcmp(key, NEXT_FILE_NAME_INDEX) == 0)
-        return KEY_NEXT_FILE_NAME_INDEX;
-    if (strcmp(key, RCD_FOLDER) == 0)
-        return KEY_RCD_FOLDER;
-    if (strcmp(key, RCD_FILE_NAME) == 0)
-        return KEY_RCD_FILE_NAME;
-    if (strcmp(key, DEL_ON_MULTIPLE_ENABLE_TICK) == 0)
-        return KEY_DEL_ON_MULTIPLE_ENABLE_TICK;
-    if (strcmp(key, MAX_RCD_DURATION) == 0)
-        return KEY_MAX_RCD_DURATION;
+    if (strcmp(key, MONO_RECORD) == 0)
+        return KEY_MONO_RECORD;
+    if (strcmp(key, FILE_INDEX) == 0)
+        return KEY_FILE_INDEX;
+    if (strcmp(key, RECORD_FOLDER) == 0)
+        return KEY_RECORD_FOLDER;
+    if (strcmp(key, RECORD_PREFIX) == 0)
+        return KEY_RECORD_PREFIX;
+    if (strcmp(key, DELETE_ON_TRIPLE_ARM) == 0)
+        return KEY_DELETE_ON_TRIPLE_ARM;
+    if (strcmp(key, MAX_RECORD_DURATION) == 0)
+        return KEY_MAX_RECORD_DURATION;
     if (strcmp(key, USE_UART_MSP) == 0)
         return KEY_USE_UART_MSP;
     if (strcmp(key, MSP_UART_ID) == 0)
@@ -246,21 +246,21 @@ const char *get_fresult_str(FRESULT res) {
     }
 }
 
-/* Construit le chemin final du fichier WAV : "0:/<rcd_folder><rcd_file_name><index>.wav" */
+/* Construit le chemin final du fichier WAV : "0:/<record_folder><record_prefix><index>.wav" */
 static void build_final_file_path(char *out, size_t out_size) {
     snprintf(out, out_size, "0:/%s%s%u.wav",
-             fpv_sl_config.rcd_folder    ? fpv_sl_config.rcd_folder    : "",
-             fpv_sl_config.rcd_file_name ? fpv_sl_config.rcd_file_name : "rec",
-             fpv_sl_config.next_file_name_index);
+             fpv_sl_config.record_folder    ? fpv_sl_config.record_folder    : "",
+             fpv_sl_config.record_prefix ? fpv_sl_config.record_prefix : "rec",
+             fpv_sl_config.file_index);
 }
 
-/* Relit default.conf, remplace la ligne NEXT_FILE_NAME_INDEX et réécrit le fichier. */
+/* Relit default.conf, remplace la ligne FILE_INDEX et réécrit le fichier. */
 static int8_t update_next_file_index_in_conf(uint16_t new_index) {
     char read_buf[512];
     char write_buf[512];
     UINT br;
 
-    LOGI("Updating %s to %u in conf.", NEXT_FILE_NAME_INDEX, new_index);
+    LOGI("Updating %s to %u in conf.", FILE_INDEX, new_index);
 
     FRESULT fr = f_open(&file_p, CONFIG_FILE_PATH, FA_READ);
     if (fr != FR_OK) {
@@ -275,8 +275,8 @@ static int8_t update_next_file_index_in_conf(uint16_t new_index) {
     }
     read_buf[br] = '\0';
 
-    /* Localise la ligne NEXT_FILE_NAME_INDEX et remplace la valeur. */
-    const char *prefix = NEXT_FILE_NAME_INDEX " ";
+    /* Localise la ligne FILE_INDEX et remplace la valeur. */
+    const char *prefix = FILE_INDEX " ";
     char *pos = strstr(read_buf, prefix);
     if (pos == NULL) {
         LOGE("update_index: key not found in conf.");
@@ -312,7 +312,7 @@ static int8_t update_next_file_index_in_conf(uint16_t new_index) {
         return -1;
     }
 
-    fpv_sl_config.next_file_name_index = new_index;
+    fpv_sl_config.file_index = new_index;
     LOGI("Index updated to %u.", new_index);
     return 0;
 }
@@ -351,8 +351,8 @@ int8_t read_conf_file(void) {
         case KEY_USE_ENABLE_PIN:
             fpv_sl_config.use_enable_pin = parse_bool(conf_item.value);
             break;
-        case KEY_ALWAYS_RCD:
-            fpv_sl_config.always_rcd = parse_bool(conf_item.value);
+        case KEY_RECORD_ON_BOOT:
+            fpv_sl_config.record_on_boot = parse_bool(conf_item.value);
             break;
         case KEY_MIC_GAIN:
             fpv_sl_config.mic_gain = parse_uint8(conf_item.value);
@@ -369,25 +369,25 @@ int8_t read_conf_file(void) {
         case KEY_BUFFER_SIZE:
             fpv_sl_config.buffer_size = parse_uint16(conf_item.value);
             break;
-        case KEY_IS_MONO_RCD:
-            fpv_sl_config.is_mono_rcd = parse_uint16(conf_item.value);
+        case KEY_MONO_RECORD:
+            fpv_sl_config.mono_record = parse_uint16(conf_item.value);
             break;
-        case KEY_NEXT_FILE_NAME_INDEX:
-            fpv_sl_config.next_file_name_index = parse_uint16(conf_item.value);
+        case KEY_FILE_INDEX:
+            fpv_sl_config.file_index = parse_uint16(conf_item.value);
             break;
-        case KEY_RCD_FOLDER:
-            strncpy(s_rcd_folder, conf_item.value, sizeof(s_rcd_folder) - 1);
-            fpv_sl_config.rcd_folder = s_rcd_folder;
+        case KEY_RECORD_FOLDER:
+            strncpy(s_record_folder, conf_item.value, sizeof(s_record_folder) - 1);
+            fpv_sl_config.record_folder = s_record_folder;
             break;
-        case KEY_RCD_FILE_NAME:
-            strncpy(s_rcd_file_name, conf_item.value, sizeof(s_rcd_file_name) - 1);
-            fpv_sl_config.rcd_file_name = s_rcd_file_name;
+        case KEY_RECORD_PREFIX:
+            strncpy(s_record_prefix, conf_item.value, sizeof(s_record_prefix) - 1);
+            fpv_sl_config.record_prefix = s_record_prefix;
             break;
-        case KEY_DEL_ON_MULTIPLE_ENABLE_TICK:
-            fpv_sl_config.delete_on_multiple_enable_tick = parse_bool(conf_item.value);
+        case KEY_DELETE_ON_TRIPLE_ARM:
+            fpv_sl_config.delete_on_triple_arm = parse_bool(conf_item.value);
             break;
-        case KEY_MAX_RCD_DURATION:
-            fpv_sl_config.max_rcd_duration = parse_uint16(conf_item.value);
+        case KEY_MAX_RECORD_DURATION:
+            fpv_sl_config.max_record_duration = parse_uint16(conf_item.value);
             break;
         case KEY_USE_UART_MSP:
             fpv_sl_config.use_uart_msp = parse_bool(conf_item.value);
@@ -434,14 +434,14 @@ int8_t create_wav_file(void) {
        d'extension FAT pendant l'enregistrement.
        En cas d'échec (carte fragmentée, espace insuffisant), on continue sans pré-allocation —
        le recording reste fonctionnel, avec une latence d'écriture moins prévisible. */
-    uint8_t  channels        = fpv_sl_config.is_mono_rcd ? 1 : 2;
+    uint8_t  channels        = fpv_sl_config.mono_record ? 1 : 2;
     uint32_t pre_alloc_bytes = (uint32_t)fpv_sl_config.sample_rate
                                * channels * 2
-                               * fpv_sl_config.max_rcd_duration
+                               * fpv_sl_config.max_record_duration
                                + sizeof(wav_header_t);
     LOGI("Requesting %lu B pre-allocation (%us at %uHz %s).",
-         pre_alloc_bytes, fpv_sl_config.max_rcd_duration,
-         fpv_sl_config.sample_rate, fpv_sl_config.is_mono_rcd ? "mono" : "stereo");
+         pre_alloc_bytes, fpv_sl_config.max_record_duration,
+         fpv_sl_config.sample_rate, fpv_sl_config.mono_record ? "mono" : "stereo");
 
     fr = f_expand(&file_p, (FSIZE_t)pre_alloc_bytes, 1);
     if (fr == FR_OK) {
@@ -513,11 +513,11 @@ int8_t finalize_wav_file(uint32_t rcd_duration) {
                            .data_header     = {'D', 'A', 'T', 'A'},
                            .fmt_chunk_size  = 16,
                            .audio_format    = 1,
-                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
                            .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -554,7 +554,7 @@ int8_t finalize_wav_file(uint32_t rcd_duration) {
     }
 
     /* 5. Incrément de l'index dans la conf. */
-    if (update_next_file_index_in_conf(fpv_sl_config.next_file_name_index + 1) != 0) {
+    if (update_next_file_index_in_conf(fpv_sl_config.file_index + 1) != 0) {
         LOGW("Finalise: index update failed.");
     }
 
@@ -616,11 +616,11 @@ int8_t recover_unfinalized_recording(void) {
                            .data_header     = {'D', 'A', 'T', 'A'},
                            .fmt_chunk_size  = 16,
                            .audio_format    = 1,
-                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
                            .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -653,7 +653,7 @@ int8_t recover_unfinalized_recording(void) {
         return -1;
     }
 
-    if (update_next_file_index_in_conf(fpv_sl_config.next_file_name_index + 1) != 0) {
+    if (update_next_file_index_in_conf(fpv_sl_config.file_index + 1) != 0) {
         LOGW("recover: index update failed.");
     }
 
@@ -671,11 +671,11 @@ int8_t sync_wav_file(void) {
                            .data_header     = {'D', 'A', 'T', 'A'},
                            .fmt_chunk_size  = 16,
                            .audio_format    = 1,
-                           .num_channels    = fpv_sl_config.is_mono_rcd ? 1 : 2,
+                           .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
                            .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.is_mono_rcd ? 1 : 2) * 16 / 8,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
                            .wav_size        = 36 + g_audio_bytes_written,
                            .data_bytes      = g_audio_bytes_written};
 
@@ -732,7 +732,7 @@ int8_t flush_audio_files(void) {
     char    dir_path[64];
     char    file_path[320];
 
-    const char *folder = fpv_sl_config.rcd_folder ? fpv_sl_config.rcd_folder : "";
+    const char *folder = fpv_sl_config.record_folder ? fpv_sl_config.record_folder : "";
     snprintf(dir_path, sizeof(dir_path), "0:/%s", folder);
 
     /* Supprime le '/' final si présent pour éviter les doubles slash dans file_path. */

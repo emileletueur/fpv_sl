@@ -31,10 +31,10 @@ void test_parse_empty_line_is_invalid(void) {
 }
 
 void test_parse_strips_trailing_newline(void) {
-    char line[] = "ALWAYS_RCD true\n";
+    char line[] = "RECORD_ON_BOOT true\n";
     key_value_pair_t p = parse_conf_key_value(line);
     TEST_ASSERT_TRUE(p.valid);
-    TEST_ASSERT_EQUAL_STRING("ALWAYS_RCD", p.key);
+    TEST_ASSERT_EQUAL_STRING("RECORD_ON_BOOT", p.key);
     TEST_ASSERT_EQUAL_STRING("true", p.value);
 }
 
@@ -61,11 +61,11 @@ void test_parse_bool_value_false(void) {
     TEST_ASSERT_EQUAL_STRING("false", p.value);
 }
 
-void test_parse_rcd_folder_value(void) {
-    char line[] = "RCD_FOLDER records/";
+void test_parse_record_folder_value(void) {
+    char line[] = "RECORD_FOLDER records/";
     key_value_pair_t p = parse_conf_key_value(line);
     TEST_ASSERT_TRUE(p.valid);
-    TEST_ASSERT_EQUAL_STRING("RCD_FOLDER", p.key);
+    TEST_ASSERT_EQUAL_STRING("RECORD_FOLDER", p.key);
     TEST_ASSERT_EQUAL_STRING("records/", p.value);
 }
 
@@ -74,8 +74,8 @@ void test_parse_rcd_folder_value(void) {
 void test_key_use_enable_pin(void) {
     TEST_ASSERT_EQUAL_INT(KEY_USE_ENABLE_PIN, string_to_key_enum("USE_ENABLE_PIN"));
 }
-void test_key_always_rcd(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_ALWAYS_RCD, string_to_key_enum("ALWAYS_RCD"));
+void test_key_record_on_boot(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_RECORD_ON_BOOT, string_to_key_enum("RECORD_ON_BOOT"));
 }
 void test_key_mic_gain(void) {
     TEST_ASSERT_EQUAL_INT(KEY_MIC_GAIN, string_to_key_enum("MIC_GAIN"));
@@ -92,24 +92,24 @@ void test_key_sample_rate(void) {
 void test_key_buffer_size(void) {
     TEST_ASSERT_EQUAL_INT(KEY_BUFFER_SIZE, string_to_key_enum("BUFFER_SIZE"));
 }
-void test_key_is_mono_rcd(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_IS_MONO_RCD, string_to_key_enum("IS_MONO_RCD"));
+void test_key_mono_record(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_MONO_RECORD, string_to_key_enum("MONO_RECORD"));
 }
-void test_key_next_file_name_index(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_NEXT_FILE_NAME_INDEX, string_to_key_enum("NEXT_FILE_NAME_INDEX"));
+void test_key_file_index(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_FILE_INDEX, string_to_key_enum("FILE_INDEX"));
 }
-void test_key_rcd_folder(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_RCD_FOLDER, string_to_key_enum("RCD_FOLDER"));
+void test_key_record_folder(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_RECORD_FOLDER, string_to_key_enum("RECORD_FOLDER"));
 }
-void test_key_rcd_file_name(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_RCD_FILE_NAME, string_to_key_enum("RCD_FILE_NAME"));
+void test_key_record_prefix(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_RECORD_PREFIX, string_to_key_enum("RECORD_PREFIX"));
 }
-void test_key_del_on_multiple_enable_tick(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_DEL_ON_MULTIPLE_ENABLE_TICK,
-                          string_to_key_enum("DEL_ON_MULTIPLE_ENABLE_TICK"));
+void test_key_delete_on_triple_arm(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_DELETE_ON_TRIPLE_ARM,
+                          string_to_key_enum("DELETE_ON_TRIPLE_ARM"));
 }
-void test_key_max_rcd_duration(void) {
-    TEST_ASSERT_EQUAL_INT(KEY_MAX_RCD_DURATION, string_to_key_enum("MAX_RCD_DURATION"));
+void test_key_max_record_duration(void) {
+    TEST_ASSERT_EQUAL_INT(KEY_MAX_RECORD_DURATION, string_to_key_enum("MAX_RECORD_DURATION"));
 }
 void test_key_use_uart_msp(void) {
     TEST_ASSERT_EQUAL_INT(KEY_USE_UART_MSP, string_to_key_enum("USE_UART_MSP"));
@@ -129,7 +129,7 @@ void test_key_empty_string(void) {
 void test_key_case_sensitive(void) {
     /* Les clés sont sensibles à la casse : minuscules → KEY_UNKNOWN */
     TEST_ASSERT_EQUAL_INT(KEY_UNKNOWN, string_to_key_enum("sample_rate"));
-    TEST_ASSERT_EQUAL_INT(KEY_UNKNOWN, string_to_key_enum("always_rcd"));
+    TEST_ASSERT_EQUAL_INT(KEY_UNKNOWN, string_to_key_enum("record_on_boot"));
 }
 
 /* ── main ────────────────────────────────────────────────────────────────── */
@@ -144,21 +144,21 @@ int main(void) {
     RUN_TEST(test_parse_strips_trailing_crlf);
     RUN_TEST(test_parse_bool_value_true);
     RUN_TEST(test_parse_bool_value_false);
-    RUN_TEST(test_parse_rcd_folder_value);
+    RUN_TEST(test_parse_record_folder_value);
 
     RUN_TEST(test_key_use_enable_pin);
-    RUN_TEST(test_key_always_rcd);
+    RUN_TEST(test_key_record_on_boot);
     RUN_TEST(test_key_mic_gain);
     RUN_TEST(test_key_use_high_pass_filter);
     RUN_TEST(test_key_high_pass_cutoff_freq);
     RUN_TEST(test_key_sample_rate);
     RUN_TEST(test_key_buffer_size);
-    RUN_TEST(test_key_is_mono_rcd);
-    RUN_TEST(test_key_next_file_name_index);
-    RUN_TEST(test_key_rcd_folder);
-    RUN_TEST(test_key_rcd_file_name);
-    RUN_TEST(test_key_del_on_multiple_enable_tick);
-    RUN_TEST(test_key_max_rcd_duration);
+    RUN_TEST(test_key_mono_record);
+    RUN_TEST(test_key_file_index);
+    RUN_TEST(test_key_record_folder);
+    RUN_TEST(test_key_record_prefix);
+    RUN_TEST(test_key_delete_on_triple_arm);
+    RUN_TEST(test_key_max_record_duration);
     RUN_TEST(test_key_use_uart_msp);
     RUN_TEST(test_key_msp_uart_id);
     RUN_TEST(test_key_msp_baud_rate);

@@ -100,11 +100,11 @@ static void update_disk_status(void) {
 uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
     fpv_sl_conf = fpv_sl_config;
     if (fpv_sl_conf->conf_is_loaded) {
-        if (fpv_sl_conf->always_rcd)
+        if (fpv_sl_conf->record_on_boot)
             execution_condition = ALWAY_RCD_TYPE;
-        else if (!fpv_sl_conf->always_rcd && !fpv_sl_conf->use_enable_pin)
+        else if (!fpv_sl_conf->record_on_boot && !fpv_sl_conf->use_enable_pin)
             execution_condition = RCD_ONLY_TYPE;
-        else if (!fpv_sl_conf->always_rcd && fpv_sl_conf->use_enable_pin)
+        else if (!fpv_sl_conf->record_on_boot && fpv_sl_conf->use_enable_pin)
             execution_condition = CLASSIC_TYPE;
         return 0;
     } else
@@ -122,8 +122,8 @@ void fpv_sl_process_mode(void) {
     switch (execution_condition) {
 
     case ALWAY_RCD_TYPE:
-        /* Enregistrement continu, découpé en fichiers de max_rcd_duration s. */
-        g_max_record_ms = (uint32_t)fpv_sl_conf->max_rcd_duration * 1000UL;
+        /* Enregistrement continu, découpé en fichiers de max_record_duration s. */
+        g_max_record_ms = (uint32_t)fpv_sl_conf->max_record_duration * 1000UL;
         LOGI("ALWAY_RCD — max file duration %lu ms.", g_max_record_ms);
         while (1) {
             create_wav_file();
@@ -265,7 +265,7 @@ void fpv_sl_core1_loop(void) {
         uint32_t addr = multicore_fifo_pop_blocking();
         int32_t *samples = (int32_t *) addr;
 
-        if (fpv_sl_conf->is_mono_rcd) {
+        if (fpv_sl_conf->mono_record) {
             // COMPACTION : On ne garde que le canal GAUCHE (indices pairs)
             int j = 0;
             for (int i = 0; i < fpv_sl_conf->buffer_size; i += 2) {

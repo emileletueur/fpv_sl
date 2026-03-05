@@ -81,7 +81,7 @@ int main() {
         if (conf->conf_is_loaded) {
             // Initialize I2S MEMS mic
             i2s_mic_t i2s_mic_conf = {
-                .sample_rate = conf->sample_rate, .is_mono = conf->is_mono_rcd, .buffer_size = 2048};
+                .sample_rate = conf->sample_rate, .is_mono = conf->mono_record, .buffer_size = 2048};
             init_i2s_mic(&i2s_mic_conf);
 
             // Initialize Flight Controller GPIO interface

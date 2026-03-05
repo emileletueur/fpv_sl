@@ -81,9 +81,9 @@ The core design splits work across both RP2040 cores:
 
 | Phase | What happens |
 |---|---|
-| `create_wav_file()` | Opens `t_mic_rcd.wav`, calls `f_expand()` to pre-allocate a contiguous block (`sample_rate × channels × 2 × MAX_RCD_DURATION + 44` bytes), writes a placeholder WAV header with `data_bytes = 0`. If `f_expand` fails (fragmented card, insufficient contiguous space), recording continues without pre-allocation — `LOGW` emitted, no abort. |
+| `create_wav_file()` | Opens `t_mic_rcd.wav`, calls `f_expand()` to pre-allocate a contiguous block (`sample_rate × channels × 2 × MAX_RECORD_DURATION + 44` bytes), writes a placeholder WAV header with `data_bytes = 0`. If `f_expand` fails (fragmented card, insufficient contiguous space), recording continues without pre-allocation — `LOGW` emitted, no abort. |
 | `write_buffer()` + `sync_wav_file()` | Every `SYNC_PERIOD_BLOCKS` (64) blocks written (~370 ms at 44.1 kHz), `sync_wav_file()` rewrites the WAV header at offset 0 with the current `g_audio_bytes_written` value (checkpoint), seeks back to the write position, and calls `f_sync()`. |
-| `finalize_wav_file()` | If pre-allocation was active: `f_truncate()` at `sizeof(wav_header_t) + g_audio_bytes_written` to release unused clusters. Then rewrites the final WAV header, closes, renames to `<rcd_folder><rcd_file_name><index>.wav`, increments `NEXT_FILE_NAME_INDEX` in `default.conf`. `f_truncate` failure is non-fatal (LOGW) — audio content is unaffected. |
+| `finalize_wav_file()` | If pre-allocation was active: `f_truncate()` at `sizeof(wav_header_t) + g_audio_bytes_written` to release unused clusters. Then rewrites the final WAV header, closes, renames to `<record_folder><record_prefix><index>.wav`, increments `FILE_INDEX` in `default.conf`. `f_truncate` failure is non-fatal (LOGW) — audio content is unaffected. |
 | `recover_unfinalized_recording()` | Called at boot before USB/recording split. Detects `t_mic_rcd.wav` via `f_stat`. Reads the existing WAV header: if `data_bytes > 0` and within file bounds, uses it as the valid audio size (accurate to the last sync, ≤ 370 ms loss). If `data_bytes == 0` (power cut before first sync), falls back to `finfo.fsize - 44` (may include uninitialized pre-allocated data at tail). In both cases, `f_truncate()` is called before rename. |
 
 **Power-cut guarantees:**
@@ -93,7 +93,7 @@ The core design splits work across both RP2040 cores:
 
 ### Configuration
 
-`default.conf` on the SD card root is parsed at runtime by `config/fpv_sl_config.{h,c}` and `modules/sdio/file_helper.{c,h}`. The parsed result is `fpv_sl_conf_t`. Recording mode (`execution_condition_t`) is derived from `always_rcd` and `use_enable_pin` flags.
+`default.conf` on the SD card root is parsed at runtime by `config/fpv_sl_config.{h,c}` and `modules/sdio/file_helper.{c,h}`. The parsed result is `fpv_sl_conf_t`. Recording mode (`execution_condition_t`) is derived from `record_on_boot` and `use_enable_pin` flags.
 
 If `default.conf` is absent, factory defaults are applied and the file is created on the SD card (`FR_NO_FILE` path in `read_conf_file()`). If the SD card fails to mount, `conf_is_loaded` stays false and recording does not start.
 
@@ -196,8 +196,8 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [x] **Vérifier / supprimer `read_config_file`** — déclaration supprimée de `file_helper.h`, `src/utils/cpcpy.txt` (brouillon de prototypage) supprimé.
 - [ ] **Latence au montage MSC (TinyUSB)** — investiguer le délai observé lors de l'énumération / montage du volume SD en mode USB Mass Storage.
 - [ ] **Vitesse de transfert en mode MSC** — mesurer et optimiser le débit de transfert des fichiers WAV via le mode MSC TinyUSB.
-- [x] **Pré-allocation WAV via `f_expand()`** — implémenté avec fallback, checkpoint header dans `sync_wav_file()`, truncate dans `finalize_wav_file()` et `recover_unfinalized_recording()`. Clé `MAX_RCD_DURATION` ajoutée (défaut 300 s). Voir section *WAV file lifecycle* dans Architecture.
-- [x] **Flush audio sur triple-trigger ENABLE** (`DEL_ON_MULTIPLE_ENABLE_TICK`) — implémenté. Comptage dans `fpv_sl_on_enable()` (commun GPIO+MSP), `flush_audio_files()` dans `file_helper.c`, LED `set_module_flushing_status()` (rouge fixe prod, triple flash rapide debug). Check idle dans `RCD_ONLY` et `CLASSIC`. 4 tests Unity host (fenêtre, compteur, flag, clear). README documenté + note câblage ENABLE obligatoire en `RCD_ONLY`.
+- [x] **Pré-allocation WAV via `f_expand()`** — implémenté avec fallback, checkpoint header dans `sync_wav_file()`, truncate dans `finalize_wav_file()` et `recover_unfinalized_recording()`. Clé `MAX_RECORD_DURATION` ajoutée (défaut 300 s). Voir section *WAV file lifecycle* dans Architecture.
+- [x] **Flush audio sur triple-trigger ENABLE** (`DELETE_ON_TRIPLE_ARM`) — implémenté. Comptage dans `fpv_sl_on_enable()` (commun GPIO+MSP), `flush_audio_files()` dans `file_helper.c`, LED `set_module_flushing_status()` (rouge fixe prod, triple flash rapide debug). Check idle dans `RCD_ONLY` et `CLASSIC`. 4 tests Unity host (fenêtre, compteur, flag, clear). README documenté + note câblage ENABLE obligatoire en `RCD_ONLY`.
 - [ ] **Filtre passe-bas + passe-bande** — ajouter un filtre passe-bas IIR symétrique au passe-haut existant (`process_sample`) pour obtenir un passe-bande configurable (ex. 200 Hz – 8 kHz). Fréquence de coupure haute à exposer dans `default.conf`.
 - [ ] **Gain automatique (AGC)** — étudier un contrôle automatique de gain pour normaliser le niveau du signal selon l'amplitude mesurée sur fenêtre glissante.
 - [x] **[MSP 1/5] Clé de config `use_uart_msp`** — `use_uart_msp` (bool), `msp_uart_id` (uint8), `msp_baud_rate` (uint32) dans `fpv_sl_conf_t` + parser + defaults (false / UART1 / 115200). Documenté dans README.

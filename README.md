@@ -71,7 +71,7 @@ Configured via `default.conf` on the SD card root:
 
 | Mode | Trigger | Description |
 |---|---|---|
-| `ALWAYS_RCD` | Power-on | Starts recording immediately when powered |
+| `RECORD_ON_BOOT` | Power-on | Starts recording immediately when powered |
 | `RCD_ONLY` | ARM pin | Waits for the FC ARM signal to start recording |
 | `CLASSIC` | ENABLE then ARM | Standby until ENABLE, then records on ARM |
 
@@ -83,11 +83,11 @@ Configured via `default.conf` on the SD card root:
 
 Toggle the ENABLE pin (or MSP arm signal) **3 times within 5 seconds** while **not recording** to delete all WAV files in the recording folder and reset the file index to 0. This is a quick in-field cleanup without needing to connect USB or a computer.
 
-- Only active in `RCD_ONLY` and `CLASSIC` modes (`ALWAYS_RCD` never triggers deletion).
+- Only active in `RCD_ONLY` and `CLASSIC` modes (`RECORD_ON_BOOT` never triggers deletion).
 - Each toggle = one rising edge on the ENABLE pin (arm signal from the FC).
 - If more than 5 seconds pass between two edges, the counter resets.
 - The LED shows **3 rapid short flashes** (debug) or **solid red** (production) while files are being deleted, then returns to the ready state.
-- Controlled by the `del_on_multiple_enable_tick` config key.
+- Controlled by the `delete_on_triple_arm` config key.
 
 ---
 
@@ -138,17 +138,17 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | Key | Values | Description |
 |---|---|---|
 | `use_enable_pin` | `true` / `false` | Enable the FC ENABLE pin trigger |
-| `always_rcd` | `true` / `false` | Record immediately on power-on |
+| `record_on_boot` | `true` / `false` | Record immediately on power-on |
 | `mic_gain` | `10` – `110` | Microphone gain factor (100 = unity) |
 | `use_high_pass_filter` | `true` / `false` | Enable the digital high-pass filter |
 | `high_pass_cutoff_freq` | `50` – `500` | High-pass filter cutoff frequency (Hz) |
 | `sample_rate` | `22080` / `44180` | I2S sample rate (Hz) |
-| `is_mono_rcd` | `true` / `false` | Record in mono (single channel) |
-| `next_file_name_index` | `1` – `...` | Auto-incremented index for unique file names |
-| `rcd_folder` | `/` / `records/` | Destination folder for WAV files |
-| `rcd_file_name` | `mic_wav` / ... | Base name for WAV files |
-| `del_on_multiple_enable_tick` | `true` / `false` | Enable the triple-trigger ENABLE delete feature (see below) |
-| `max_rcd_duration` | seconds (default `300`) | Maximum recording duration used for WAV pre-allocation via `f_expand()`. Falls back gracefully if contiguous space is unavailable. |
+| `mono_record` | `true` / `false` | Record in mono (single channel) |
+| `file_index` | `1` – `...` | Auto-incremented index for unique file names |
+| `record_folder` | `/` / `records/` | Destination folder for WAV files |
+| `record_prefix` | `mic_wav` / ... | Base name for WAV files |
+| `delete_on_triple_arm` | `true` / `false` | Enable the triple-trigger ENABLE delete feature (see below) |
+| `max_record_duration` | seconds (default `300`) | Maximum recording duration used for WAV pre-allocation via `f_expand()`. Falls back gracefully if contiguous space is unavailable. |
 | `use_uart_msp` | `true` / `false` | Enable MSP polling over UART to detect FC arm state and trigger recording (replaces or complements GPIO pins) |
 | `msp_uart_id` | `0` / `1` | Pico UART peripheral to use for MSP (default `1`) |
 | `msp_baud_rate` | e.g. `115200`, `230400`, `460800` | Baud rate for the MSP UART (default `115200`) |
