@@ -66,7 +66,8 @@ Format: clang-format with `src/clang-format` (LLVM style, 120-column limit, 4-sp
 The core design splits work across both RP2040 cores:
 
 - **Core 0** (`fpv_sl_core0_loop`): checks the ring buffer (`audio_pipeline_t`), pushes a ready block pointer to Core 1 via `multicore_fifo_push_blocking`, waits for the filtered pointer back, then writes to SD via `file_helper`.
-- **Core 1** (`fpv_sl_core1_loop`): receives a block pointer, applies the 1st-order IIR high-pass filter (`process_sample` / `hp_filter_t`), optionally compacts stereo→mono, then pushes the pointer back to Core 0.
+- **Core 1** (`fpv_sl_core1_loop`): receives a block pointer, applies the 1st-order IIR high-pass filter (`process_sample` / `hp_filter_t`), optionally compacts stereo→mono (first `buffer_size/2` slots filled, second half discarded by `write_buffer`), then pushes the pointer back to Core 0.
+- **WAV format**: 32-bit PCM (`bits_per_sample=32`, `int32_t` samples). INMP441 outputs 24-bit I2S data stored as `int32_t` after `>> 8` alignment in `process_sample`.
 - **DMA** fills the ring buffer (`audio_pipeline_t` in `modules/audio_buffer/`) using ping-pong DMA channels, independent of both cores.
 
 ### Boot sequence (`fpv_sl_loader.c`)
@@ -81,7 +82,7 @@ The core design splits work across both RP2040 cores:
 
 | Phase | What happens |
 |---|---|
-| `create_wav_file()` | Opens `t_mic_rcd.wav`, calls `f_expand()` to pre-allocate a contiguous block (`sample_rate × channels × 2 × MAX_RECORD_DURATION + 44` bytes), writes a placeholder WAV header with `data_bytes = 0`. If `f_expand` fails (fragmented card, insufficient contiguous space), recording continues without pre-allocation — `LOGW` emitted, no abort. |
+| `create_wav_file()` | Opens `t_mic_rcd.wav`, calls `f_expand()` to pre-allocate a contiguous block (`sample_rate × channels × sizeof(uint32_t) × MAX_RECORD_DURATION + 44` bytes), writes a placeholder WAV header with `data_bytes = 0`. If `f_expand` fails (fragmented card, insufficient contiguous space), recording continues without pre-allocation — `LOGW` emitted, no abort. |
 | `write_buffer()` + `sync_wav_file()` | Every `SYNC_PERIOD_BLOCKS` (64) blocks written (~370 ms at 44.1 kHz), `sync_wav_file()` rewrites the WAV header at offset 0 with the current `g_audio_bytes_written` value (checkpoint), seeks back to the write position, and calls `f_sync()`. |
 | `finalize_wav_file()` | If pre-allocation was active: `f_truncate()` at `sizeof(wav_header_t) + g_audio_bytes_written` to release unused clusters. Then rewrites the final WAV header, closes, renames to `<record_folder><record_prefix><index>.wav`, increments `FILE_INDEX` in `default.conf`. `f_truncate` failure is non-fatal (LOGW) — audio content is unaffected. |
 | `recover_unfinalized_recording()` | Called at boot before USB/recording split. Detects `t_mic_rcd.wav` via `f_stat`. Reads the existing WAV header: if `data_bytes > 0` and within file bounds, uses it as the valid audio size (accurate to the last sync, ≤ 370 ms loss). If `data_bytes == 0` (power cut before first sync), falls back to `finfo.fsize - 44` (may include uninitialized pre-allocated data at tail). In both cases, `f_truncate()` is called before rename. |
