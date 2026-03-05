@@ -13,6 +13,7 @@
 
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
 hp_filter_t filter_L = {0.959f, 0, 0}; // Alpha pour ~300Hz à 44.1kHz
+hp_filter_t filter_R = {0.959f, 0, 0};
 static execution_condition_t execution_condition;
 
 /* Nombre de blocs audio écrits entre deux f_sync().
@@ -274,10 +275,10 @@ void fpv_sl_core1_loop(void) {
             }
             // Ici, les BUFFER_SIZE/2 premiers slots du buffer sont remplis
         } else {
-            // MODE STEREO : On traite les deux (ou on traite G et on laisse D à 0)
+            // MODE STEREO : canal gauche (INMP441 L/R=GND) + canal droit (INMP441 L/R=VCC)
             for (int i = 0; i < fpv_sl_conf->buffer_size; i += 2) {
-                samples[i] = process_sample(&filter_L, samples[i]);
-                samples[i + 1] = 0; // On peut mettre le canal droit à 0 si micro mono
+                samples[i]     = process_sample(&filter_L, samples[i]);
+                samples[i + 1] = process_sample(&filter_R, samples[i + 1]);
             }
         }
 
