@@ -436,7 +436,7 @@ int8_t create_wav_file(void) {
        le recording reste fonctionnel, avec une latence d'écriture moins prévisible. */
     uint8_t  channels        = fpv_sl_config.mono_record ? 1 : 2;
     uint32_t pre_alloc_bytes = (uint32_t)fpv_sl_config.sample_rate
-                               * channels * 2
+                               * channels * sizeof(uint32_t)
                                * fpv_sl_config.max_record_duration
                                + sizeof(wav_header_t);
     LOGI("Requesting %lu B pre-allocation (%us at %uHz %s).",
