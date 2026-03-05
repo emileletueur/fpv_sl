@@ -468,9 +468,9 @@ int8_t create_wav_file(void) {
                                 .audio_format    = 1,
                                 .num_channels    = channels,
                                 .sample_rate     = fpv_sl_config.sample_rate,
-                                .bits_per_sample = 16,
-                                .byte_rate       = fpv_sl_config.sample_rate * channels * 16 / 8,
-                                .block_align     = channels * 16 / 8,
+                                .bits_per_sample = 32,
+                                .byte_rate       = fpv_sl_config.sample_rate * channels * sizeof(uint32_t),
+                                .block_align     = channels * sizeof(uint32_t),
                                 .wav_size        = 36,
                                 .data_bytes      = 0};
     UINT bw;
@@ -515,9 +515,9 @@ int8_t finalize_wav_file(uint32_t rcd_duration) {
                            .audio_format    = 1,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -618,9 +618,9 @@ int8_t recover_unfinalized_recording(void) {
                            .audio_format    = 1,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -673,9 +673,9 @@ int8_t sync_wav_file(void) {
                            .audio_format    = 1,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * 16 / 8,
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(uint32_t),
                            .wav_size        = 36 + g_audio_bytes_written,
                            .data_bytes      = g_audio_bytes_written};
 
