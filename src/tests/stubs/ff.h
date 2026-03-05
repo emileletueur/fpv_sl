@@ -74,16 +74,32 @@ static inline FRESULT f_rename(const char *old_name, const char *new_name)
    qui en ont besoin (test_disk_usage). */
 FRESULT f_getfree(const char *path, DWORD *nclst, FATFS **fatfs);
 
-/* Métadonnées de fichier — seul fsize est utilisé dans ce projet. */
+/* Métadonnées de fichier. */
 typedef DWORD FSIZE_t;
+#define AM_DIR 0x10
 typedef struct {
     FSIZE_t fsize;
-    char    fname[13];
+    BYTE    fattrib;
+    char    fname[256];
 } FILINFO;
+
+/* Répertoire — stub minimal pour f_opendir/f_readdir/f_closedir. */
+typedef struct { int _dummy; } DIR;
 
 /* f_stat : retourne FR_NO_FILE dans les tests (pas de fichier temporaire). */
 static inline FRESULT f_stat(const char *path, FILINFO *fno)
-    { (void)path; if (fno) { fno->fsize = 0; fno->fname[0] = '\0'; } return FR_NO_FILE; }
+    { (void)path; if (fno) { fno->fsize = 0; fno->fattrib = 0; fno->fname[0] = '\0'; } return FR_NO_FILE; }
+
+/* Répertoire — f_readdir retourne fname[0]=='\0' → fin de liste immédiate. */
+static inline FRESULT f_opendir(DIR *dp, const char *path)
+    { (void)dp; (void)path; return FR_OK; }
+static inline FRESULT f_readdir(DIR *dp, FILINFO *fno)
+    { (void)dp; if (fno) { fno->fname[0] = '\0'; } return FR_OK; }
+static inline FRESULT f_closedir(DIR *dp)
+    { (void)dp; return FR_OK; }
+
+static inline FRESULT f_unlink(const char *path)
+    { (void)path; return FR_OK; }
 
 /* f_size : retourne 0 dans les tests. */
 static inline FSIZE_t f_size(FIL *fp) { (void)fp; return 0; }

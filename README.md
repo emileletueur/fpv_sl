@@ -75,6 +75,20 @@ Configured via `default.conf` on the SD card root:
 | `RCD_ONLY` | ARM pin | Waits for the FC ARM signal to start recording |
 | `CLASSIC` | ENABLE then ARM | Standby until ENABLE, then records on ARM |
 
+> **Note — RCD_ONLY and the triple-trigger delete feature:** In `RCD_ONLY` mode, only the ARM/RECORD pin is strictly required for recording. However, if you want to use the **triple-trigger ENABLE delete feature** (see below), you must also wire the ENABLE pin to the FC (e.g., via Betaflight PinioBox or equivalent). Without this wire, triple-trigger detection is not possible in `RCD_ONLY` mode.
+
+---
+
+## Triple-trigger ENABLE — delete all recordings
+
+Toggle the ENABLE pin (or MSP arm signal) **3 times within 5 seconds** while **not recording** to delete all WAV files in the recording folder and reset the file index to 0. This is a quick in-field cleanup without needing to connect USB or a computer.
+
+- Only active in `RCD_ONLY` and `CLASSIC` modes (`ALWAYS_RCD` never triggers deletion).
+- Each toggle = one rising edge on the ENABLE pin (arm signal from the FC).
+- If more than 5 seconds pass between two edges, the counter resets.
+- The LED shows **3 rapid short flashes** (debug) or **solid red** (production) while files are being deleted, then returns to the ready state.
+- Controlled by the `del_on_multiple_enable_tick` config key.
+
 ---
 
 ## USB
@@ -98,6 +112,7 @@ Enumeration is attempted for 3 seconds at boot. If no host is detected, the modu
 | Recording | Green | Blink |
 | Disk alert (>80%) | Orange | Blink |
 | Disk critical (>95%) | Red | Blink |
+| Flushing audio files | Red | Fixed |
 
 ### Debug — Onboard LED (GP25)
 
@@ -112,6 +127,7 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | Recording | Triple flash repeated |
 | Disk alert (>80%) | Quadruple flash repeated |
 | Disk critical (>95%) | Very fast blink — 50 ms |
+| Flushing audio files | 3 rapid short flashes repeated |
 
 ---
 
@@ -131,7 +147,7 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | `next_file_name_index` | `1` – `...` | Auto-incremented index for unique file names |
 | `rcd_folder` | `/` / `records/` | Destination folder for WAV files |
 | `rcd_file_name` | `mic_wav` / ... | Base name for WAV files |
-| `del_on_multiple_enable_tick` | `true` / `false` | Delete all WAV files in the recording folder if ENABLE is toggled 3× within 5 s (only effective while disarmed) |
+| `del_on_multiple_enable_tick` | `true` / `false` | Enable the triple-trigger ENABLE delete feature (see below) |
 | `max_rcd_duration` | seconds (default `300`) | Maximum recording duration used for WAV pre-allocation via `f_expand()`. Falls back gracefully if contiguous space is unavailable. |
 | `use_uart_msp` | `true` / `false` | Enable MSP polling over UART to detect FC arm state and trigger recording (replaces or complements GPIO pins) |
 | `msp_uart_id` | `0` / `1` | Pico UART peripheral to use for MSP (default `1`) |

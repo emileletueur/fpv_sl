@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Temps simulé — contrôlable depuis les tests via extern uint32_t test_time_ms. */
+uint32_t test_time_ms = 0;
+
 /* ── pico/multicore ─────────────────────────────────────────────────────── */
 
 void     multicore_launch_core1(void (*fn)(void)) { (void)fn; }
@@ -27,6 +30,10 @@ int8_t create_wav_file(void)                             { return 0; }
 int8_t finalize_wav_file(uint32_t rcd_duration)          { (void)rcd_duration; return 0; }
 int8_t get_disk_usage_percent(uint8_t *out_pct)          { if (out_pct) *out_pct = 0; return 0; }
 
+/* ── sdio / file_helper (supplémentaires) ───────────────────────────────── */
+
+int8_t flush_audio_files(void) { return 0; }
+
 /* ── status_indicator ───────────────────────────────────────────────────── */
 
 void status_indicator_init(void)              {}
@@ -37,3 +44,4 @@ void set_module_record_ready_status(void)     {}
 void set_module_recording_status(void)        {}
 void set_module_free_disk_alert_status(void)  {}
 void set_module_free_disk_critical_status(void) {}
+void set_module_flushing_status(void)         {}

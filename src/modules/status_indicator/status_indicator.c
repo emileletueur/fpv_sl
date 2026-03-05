@@ -35,7 +35,8 @@ static const uint16_t pat_fast_blink[]   = {100, 100};
 static const uint16_t pat_double_flash[] = {100, 150, 100, 900};
 static const uint16_t pat_triple_flash[] = {100, 150, 100, 150, 100, 900};
 static const uint16_t pat_quad_flash[]   = {50, 60, 50, 60, 50, 60, 50, 800};
-static const uint16_t pat_sos[]          = {50, 50};
+static const uint16_t pat_sos[]              = {50, 50};
+static const uint16_t pat_triple_fast_flash[] = {50, 50, 50, 50, 50, 600};
 
 typedef struct {
     const uint16_t *steps;
@@ -50,6 +51,7 @@ typedef enum {
     PAT_TRIPLE_FLASH,
     PAT_QUAD_FLASH,
     PAT_SOS,
+    PAT_TRIPLE_FAST,
 } pattern_id_t;
 
 static const led_pattern_t patterns[] = {
@@ -59,7 +61,8 @@ static const led_pattern_t patterns[] = {
     [PAT_DOUBLE_FLASH] = {pat_double_flash,  4},
     [PAT_TRIPLE_FLASH] = {pat_triple_flash,  6},
     [PAT_QUAD_FLASH]   = {pat_quad_flash,    8},
-    [PAT_SOS]          = {pat_sos,           2},
+    [PAT_SOS]          = {pat_sos,               2},
+    [PAT_TRIPLE_FAST]  = {pat_triple_fast_flash, 6},
 };
 
 static volatile pattern_id_t current_pattern = PAT_FIXED_ON;
@@ -102,6 +105,7 @@ void set_module_record_ready_status(void)       { set_pattern(PAT_DOUBLE_FLASH);
 void set_module_recording_status(void)          { set_pattern(PAT_TRIPLE_FLASH); }
 void set_module_free_disk_alert_status(void)    { set_pattern(PAT_QUAD_FLASH);   }
 void set_module_free_disk_critical_status(void) { set_pattern(PAT_SOS);          }
+void set_module_flushing_status(void)           { set_pattern(PAT_TRIPLE_FAST);  }
 
 #else
 
@@ -121,5 +125,6 @@ void set_module_record_ready_status(void)       { set_led(LED_GREEN,  LED_MODE_F
 void set_module_recording_status(void)          { set_led(LED_GREEN,  LED_MODE_BLINK);         }
 void set_module_free_disk_alert_status(void)    { set_led(LED_ORANGE, LED_MODE_BLINK);         }
 void set_module_free_disk_critical_status(void) { set_led(LED_RED,    LED_MODE_BLINK);         }
+void set_module_flushing_status(void)           { set_led(LED_RED,    LED_MODE_FIXED);         }
 
 #endif

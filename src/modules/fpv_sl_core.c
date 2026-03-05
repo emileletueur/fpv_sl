@@ -27,18 +27,56 @@ static audio_pipeline_t g_audio_pipeline;
 
 /* Flags positionnés par les callbacks GPIO (ou MSP à terme).
    Lus dans fpv_sl_process_mode() — écriture depuis IRQ uniquement. */
-static volatile bool g_enabled = false;   /* ENABLE pin reçu (CLASSIC_TYPE) */
+static volatile bool g_enabled   = false; /* ENABLE pin reçu (CLASSIC_TYPE) */
 static volatile bool g_recording = false; /* ARM/RECORD pin reçu → écriture SD active */
 
 /* Durée max pour ALWAY_RCD_TYPE (ms). 0 = pas de limite (RCD_ONLY / CLASSIC). */
 static uint32_t g_max_record_ms = 0;
 
-int8_t fpv_sl_on_enable(void)  { g_enabled = true;              return 0; }
-int8_t fpv_sl_on_disable(void) { g_enabled = false;
-                                  g_recording = false; /* stoppe l'enregistrement si actif */
-                                  return 0; }
-int8_t fpv_sl_on_record(void)  { g_recording = true;            return 0; }
-int8_t fpv_sl_on_disarm(void)  { g_recording = false;           return 0; }
+/* Triple-trigger ENABLE → demande de suppression des fichiers audio.
+   Le compteur se réinitialise si la fenêtre ENABLE_PULSE_WINDOW_MS est dépassée.
+   La logique est dans fpv_sl_on_enable() — valide pour GPIO et MSP. */
+#define ENABLE_PULSE_WINDOW_MS 5000U
+#define ENABLE_PULSE_COUNT     3U
+
+static uint8_t       g_enable_pulse_count    = 0;
+static uint32_t      g_enable_first_pulse_ms = 0;
+static volatile bool g_delete_requested      = false;
+
+bool fpv_sl_is_delete_requested(void)       { return g_delete_requested; }
+void fpv_sl_clear_delete_request(void)      { g_delete_requested = false; }
+void fpv_sl_reset_enable_pulse_counter(void){ g_enable_pulse_count = 0; }
+
+int8_t fpv_sl_on_enable(void) {
+    uint32_t now = to_ms_since_boot(get_absolute_time());
+
+    if (g_enable_pulse_count == 0) {
+        g_enable_first_pulse_ms = now;
+        g_enable_pulse_count    = 1;
+    } else if (now - g_enable_first_pulse_ms <= ENABLE_PULSE_WINDOW_MS) {
+        g_enable_pulse_count++;
+        if (g_enable_pulse_count >= ENABLE_PULSE_COUNT) {
+            LOGI("Triple-trigger ENABLE: delete requested.");
+            g_delete_requested   = true;
+            g_enable_pulse_count = 0;
+        }
+    } else {
+        /* Fenêtre expirée → repart d'un nouveau comptage. */
+        g_enable_first_pulse_ms = now;
+        g_enable_pulse_count    = 1;
+    }
+
+    g_enabled = true;
+    return 0;
+}
+
+int8_t fpv_sl_on_disable(void) {
+    g_enabled   = false;
+    g_recording = false; /* stoppe l'enregistrement si actif */
+    return 0;
+}
+int8_t fpv_sl_on_record(void)  { g_recording = true;  return 0; }
+int8_t fpv_sl_on_disarm(void)  { g_recording = false; return 0; }
 
 /* Lit l'espace disque et met à jour la LED en conséquence.
    À appeler après chaque finalize_wav_file(). */
@@ -106,8 +144,17 @@ void fpv_sl_process_mode(void) {
         create_wav_file();
         set_module_record_ready_status();
         while (1) {
-            while (!g_recording)
+            while (!g_recording) {
+                if (g_delete_requested) {
+                    LOGI("RCD_ONLY — triple-trigger: flush audio files.");
+                    set_module_flushing_status();
+                    flush_audio_files();
+                    g_delete_requested = false;
+                    create_wav_file();
+                    set_module_record_ready_status();
+                }
                 tight_loop_contents();
+            }
             set_module_recording_status();
             LOGI("RCD_ONLY — ARM reçu, début enregistrement.");
             uint32_t start_ms = to_ms_since_boot(get_absolute_time());
@@ -127,6 +174,18 @@ void fpv_sl_process_mode(void) {
         while (1) {
             while (!g_enabled)
                 tight_loop_contents();
+
+            if (g_delete_requested) {
+                LOGI("CLASSIC — triple-trigger: flush audio files.");
+                set_module_flushing_status();
+                flush_audio_files();
+                g_delete_requested = false;
+                /* Attend que g_enabled retombe (l'utilisateur relâche le 3ème trigger). */
+                while (g_enabled)
+                    tight_loop_contents();
+                continue;
+            }
+
             LOGI("CLASSIC — ENABLE reçu, démarrage I2S.");
             i2s_mic_start();
             create_wav_file();

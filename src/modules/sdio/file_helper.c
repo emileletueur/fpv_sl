@@ -726,6 +726,66 @@ int8_t get_disk_usage_percent(uint8_t *out_percent) {
     return 0;
 }
 
+int8_t flush_audio_files(void) {
+    DIR     dir;
+    FILINFO fno;
+    char    dir_path[64];
+    char    file_path[320];
+
+    const char *folder = fpv_sl_config.rcd_folder ? fpv_sl_config.rcd_folder : "";
+    snprintf(dir_path, sizeof(dir_path), "0:/%s", folder);
+
+    /* Supprime le '/' final si présent pour éviter les doubles slash dans file_path. */
+    size_t dlen = strlen(dir_path);
+    if (dlen > 3 && dir_path[dlen - 1] == '/')
+        dir_path[dlen - 1] = '\0';
+
+    LOGI("Flushing audio files from '%s'.", dir_path);
+
+    FRESULT fr = f_opendir(&dir, dir_path);
+    if (fr != FR_OK) {
+        LOGE("flush_audio_files: f_opendir('%s') failed (%s).", dir_path, get_fresult_str(fr));
+        return -1;
+    }
+
+    uint16_t deleted = 0;
+    while (1) {
+        fr = f_readdir(&dir, &fno);
+        if (fr != FR_OK || fno.fname[0] == '\0')
+            break;
+        if (fno.fattrib & AM_DIR)
+            continue;
+
+        /* Ne supprime que les .wav (insensible à la casse — FatFS peut retourner majuscules). */
+        size_t nlen = strlen(fno.fname);
+        if (nlen < 5)
+            continue;
+        const char *ext = fno.fname + nlen - 4;
+        if (!(ext[0] == '.' &&
+              (ext[1] == 'W' || ext[1] == 'w') &&
+              (ext[2] == 'A' || ext[2] == 'a') &&
+              (ext[3] == 'V' || ext[3] == 'v')))
+            continue;
+
+        snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, fno.fname);
+        fr = f_unlink(file_path);
+        if (fr == FR_OK) {
+            LOGI("Deleted: %s", file_path);
+            deleted++;
+        } else {
+            LOGW("f_unlink('%s') failed: %s", file_path, get_fresult_str(fr));
+        }
+    }
+    f_closedir(&dir);
+
+    LOGI("Flush complete: %u file(s) deleted.", deleted);
+
+    if (update_next_file_index_in_conf(0) != 0)
+        LOGW("flush_audio_files: index reset failed.");
+
+    return 0;
+}
+
 int8_t write_buffer(uint32_t *buff) {
     UINT bytes_to_write = fpv_sl_config.buffer_size * sizeof(uint32_t);
     UINT bytes_written;

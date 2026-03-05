@@ -21,6 +21,12 @@ void fpv_sl_core0_loop(void);
 void fpv_sl_core1_loop(void);
 int32_t apply_filter_and_gain(hp_filter_t *f, int32_t sample);
 
+/* Triple-trigger ENABLE : vérifie / efface le flag de suppression des fichiers audio.
+   fpv_sl_reset_enable_pulse_counter() est destiné aux tests et à la réinitialisation. */
+bool fpv_sl_is_delete_requested(void);
+void fpv_sl_clear_delete_request(void);
+void fpv_sl_reset_enable_pulse_counter(void);
+
 /* Callbacks GPIO — à passer à initialize_gpio_interface().
    Positionnent les flags internes de fpv_sl_core ; ne font aucun accès SD ni I2S. */
 int8_t fpv_sl_on_enable(void);

@@ -22,3 +22,6 @@ void set_module_free_disk_alert_status(void);
 
 // Free disk critical -> very fast blink (debug) / red blink (prod)
 void set_module_free_disk_critical_status(void);
+
+// Flushing audio files (triple-trigger) -> 3 rapid flashes (debug) / red fixed (prod)
+void set_module_flushing_status(void);

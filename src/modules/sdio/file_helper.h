@@ -44,3 +44,7 @@ int8_t sync_wav_file(void);
 /* Retourne le pourcentage d'espace utilisé sur le volume monté (0-100).
    Retourne -1 si f_getfree échoue. Doit être appelé après montage (read_conf_file). */
 int8_t get_disk_usage_percent(uint8_t *out_percent);
+
+/* Supprime tous les fichiers .wav du dossier rcd_folder et remet l'index à 0.
+   Déclenché par le triple-trigger ENABLE. */
+int8_t flush_audio_files(void);
