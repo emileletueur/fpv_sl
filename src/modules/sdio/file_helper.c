@@ -787,7 +787,9 @@ int8_t flush_audio_files(void) {
 }
 
 int8_t write_buffer(uint32_t *buff) {
-    UINT bytes_to_write = fpv_sl_config.buffer_size * sizeof(uint32_t);
+    uint32_t samples = fpv_sl_config.mono_record ? fpv_sl_config.buffer_size / 2
+                                                 : fpv_sl_config.buffer_size;
+    UINT bytes_to_write = samples * sizeof(uint32_t);
     UINT bytes_written;
     FRESULT fr = f_write(&file_p, buff, bytes_to_write, &bytes_written);
     if (fr != FR_OK || bytes_written != bytes_to_write) {
