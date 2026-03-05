@@ -55,7 +55,7 @@ static spi_t spi_config = {
     .sck_gpio = PIN_SD_SPI_SCK,
     .mosi_gpio = PIN_SD_SPI_MOSI,
     .miso_gpio = PIN_SD_SPI_MISO,
-    .baud_rate = 25000 * 1000 // 12.5 MHz
+    .baud_rate = 25000 * 1000 // 25 MHz
 };
 
 // SD Card Configuration
@@ -185,12 +185,17 @@ int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t *
 
     msc_state.msc_is_busy = true;
     DRESULT dr = disk_write(lun, (BYTE *) buffer, lba, bufsize / 512);
-    msc_state.msc_is_busy = false;
     if (RES_OK != dr) {
+        msc_state.msc_is_busy = false;
         return -1;
     }
 
     return bufsize;
+}
+
+void tud_msc_write10_complete_cb(uint8_t lun) {
+    (void) lun;
+    msc_state.msc_is_busy = false;
 }
 
 // Callback invoked when received an SCSI command not in built-in list below
