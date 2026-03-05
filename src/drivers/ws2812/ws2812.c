@@ -21,9 +21,6 @@
 static const uint32_t COLOR_VALUES[] = {[LED_OFF] = 0x000000, [LED_BLUE] = 0x0000FF,   [LED_GREEN] = 0x00FF00,
                                         [LED_RED] = 0xFF0000, [LED_ORANGE] = 0xFF6500, [LED_WHITE] = 0xFFFFFF};
 
-static const char *COLOR_NAMES[] = {
-    [LED_OFF] = "OFF", [LED_BLUE] = "BLUE", [LED_GREEN] = "GREEN", [LED_RED] = "RED", [LED_ORANGE] = "ORANGE"};
-
 // Actual state
 static struct {
     led_color_t color;
@@ -67,7 +64,6 @@ void ws2812_init(uint8_t pin) {
 void set_led(led_color_t color, led_mode_t mode) {
     led_state.color = color;
     led_state.mode = mode;
-    char buffer[64];
 
     if (mode == LED_MODE_FIXED) {
         put_pixel(urgb_u32((COLOR_VALUES[color] >> 16) & 0xFF, // R

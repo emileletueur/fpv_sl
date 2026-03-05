@@ -12,4 +12,5 @@ target_link_libraries(fpv_sl_core PUBLIC
     sdio
     i2s_mic
     status_indicator
+    pico_multicore
 )
