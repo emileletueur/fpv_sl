@@ -34,23 +34,26 @@ int main() {
 
     board_init_after_tusb();
 
+    // Init SD card and FatFS before USB — blocking ops must not happen after tusb_init()
+    // so that tud_task() can run as soon as USB starts.
     while (tud_msc_request_mount()) {
         ;
     }
 
-    tusb_init(BOARD_TUD_RHPORT, &dev_init);
-
-    // init status LED indicator
-    status_indicator_init();
-    set_module_powered_status();
-    sleep_ms(500);
-
-    // Load config and recover any unfinalized recording (before USB/non-USB split)
-    // so that recovered files are visible via MSC if USB is detected.
+    // Load config and recover any unfinalized recording before USB starts.
+    // Recovered files will be visible via MSC since FatFS is unmounted before MSC takes over.
     if (read_conf_file() == 0) {
         recover_unfinalized_recording();
     }
     const fpv_sl_conf_t *conf = get_conf();
+
+    // Init status LED before USB — sleep_ms here does not block USB enumeration.
+    status_indicator_init();
+    set_module_powered_status();
+    sleep_ms(500);
+
+    // Start USB — tud_task() must be called as soon as possible after this.
+    tusb_init(BOARD_TUD_RHPORT, &dev_init);
 
     // wait for USB enumeration with timeout
     bool is_device_enumerated = false;
