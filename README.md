@@ -60,6 +60,7 @@ INMP441 ──I2S──► DMA (ping-pong) ──► Ring buffer (8 × 256 sampl
 
 - **Sample rates**: 22 080 Hz or 44 180 Hz (configurable)
 - **Channels**: mono or stereo (configurable)
+- **Bit depth**: 32-bit PCM (INMP441 outputs 24-bit I2S data stored as int32)
 - **DSP**: 1st-order IIR high-pass filter (α ≈ 0.959, cutoff ~300 Hz) — removes low-frequency motor noise
 - **Buffer**: ring buffer of 8 blocks × 256 samples × 4 bytes = ~8 kB, providing ~128 ms of margin at 16 kHz
 
