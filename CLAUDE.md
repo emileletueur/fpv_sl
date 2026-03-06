@@ -65,10 +65,10 @@ Format: clang-format with `src/clang-format` (LLVM style, 120-column limit, 4-sp
 
 The core design splits work across both RP2040 cores:
 
-- **Core 0** (`fpv_sl_core0_loop`): checks the ring buffer (`audio_pipeline_t`), pushes a ready block pointer to Core 1 via `multicore_fifo_push_blocking`, waits for the filtered pointer back, then writes to SD via `file_helper`.
+- **Core 0** (`fpv_sl_core0_loop`): resets `filter_L`/`filter_R` state at start of each recording, then polls `is_data_ready()` (i2s_mic), pushes a ready block pointer to Core 1 via `multicore_fifo_push_blocking`, waits for the filtered pointer back, then writes to SD via `file_helper`.
 - **Core 1** (`fpv_sl_core1_loop`): receives a block pointer, applies the 1st-order IIR high-pass filter (`process_sample` / `hp_filter_t`), optionally compacts stereo→mono (first `buffer_size/2` slots filled, second half discarded by `write_buffer`), then pushes the pointer back to Core 0.
 - **WAV format**: 32-bit PCM (`bits_per_sample=32`, `int32_t` samples). INMP441 outputs 24-bit I2S data stored as `int32_t` after `>> 8` alignment in `process_sample`.
-- **DMA** fills the ring buffer (`audio_pipeline_t` in `modules/audio_buffer/`) using ping-pong DMA channels, independent of both cores.
+- **DMA** fills the i2s_mic ping-pong buffers using two DMA channels, independent of both cores. `modules/audio_buffer/` (`audio_pipeline_t`) existe mais n'est **pas** utilisé par `fpv_sl_core` — le pipeline réel passe par `is_data_ready()` / `get_active_buffer_ptr()` de `i2s_mic`.
 
 ### Boot sequence (`fpv_sl_loader.c`)
 
