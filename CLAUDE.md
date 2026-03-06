@@ -207,4 +207,14 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [ ] **[MSP 4/5] Valorisation MSP de la struct** — `MSP_RC` (105) déjà polled en [MSP 2/5] → sticks CH1–4 gratuits. Étendre avec `MSP_ATTITUDE` (108) + `MSP_RAW_GPS` (106) + `MSP_ANALOG` (110, déjà polled) → remplissage `fpv_sl_telemetry_t` → écriture SD bufferisée pour ne pas bloquer Core 0. ~145 bytes/cycle × 30 Hz = ~4 kB/s.
 - [ ] **[MSP 5/5] Support MAVLink (ArduPilot / avions)** — second parser sur le même UART (auto-détection ou clé `use_uart_mavlink`). `HEARTBEAT` → arm trigger (même machine d'état). Messages périodiques push → mêmes champs `fpv_sl_telemetry_t`. Couvre iNAV en MAVLink et ArduPilot fixed-wing.
 - [ ] **[MSP 6/5] Esclave MSP v2 — monitoring EdgeTX Lua** — le Pico répond aux requêtes MSP v2 custom forwardées par le FC via MSP passthrough (FC UART bridge → Pico). Même UART que le polling maître, détection des frames `$X` entrants entre les cycles de polling. Custom message IDs (>= `0x1000`) : `MSP2_FPV_SD_STATUS` (free/total kB + recording bool), `MSP2_FPV_CONFIG_GET` (dump `fpv_sl_conf_t`), `MSP2_FPV_CONFIG_SET` (écriture clé/valeur → `default.conf`). Script Lua EdgeTX pour afficher l'occupation SD et l'état d'enregistrement sur l'écran radio.
+- [ ] **Telemetry — items à enregistrer** (projet séparé) :
+  - [ ] Sticks CH1–CH4 (roll, pitch, yaw, throttle)
+  - [ ] Voies AUX CH5–CH8
+  - [ ] Attitude roll / pitch / yaw
+  - [ ] GPS fix type / satellites
+  - [ ] GPS latitude / longitude
+  - [ ] GPS altitude / ground speed
+  - [ ] Tension batterie (vbat)
+  - [ ] Courant / mAh consommés
+  - [ ] RSSI
 - [x] **Nettoyer ws2812.h** — Déclarations fantômes supprimées (`fix_*`, `toggle_*`), `COLOR_NAMES[]` et `char buffer[64]` inutilisés retirés de `ws2812.c`.
