@@ -1,7 +1,6 @@
 
 
 #include "fpv_sl_core.h"
-#include "audio_buffer.h"
 #include "debug_log.h"
 #include "file_helper.h"
 #include "i2s_mic.h"
@@ -24,7 +23,6 @@ static execution_condition_t execution_condition;
 // Pipeline partagé entre les cores
 // ─────────────────────────────────────────────
 
-static audio_pipeline_t g_audio_pipeline;
 
 /* Flags positionnés par les callbacks GPIO (ou MSP à terme).
    Lus dans fpv_sl_process_mode() — écriture depuis IRQ uniquement. */
@@ -233,6 +231,9 @@ int32_t process_sample(hp_filter_t *f, int32_t sample) {
 }
 
 void fpv_sl_core0_loop(void) {
+    filter_L.last_x = 0; filter_L.last_y = 0;
+    filter_R.last_x = 0; filter_R.last_y = 0;
+
     uint32_t blocks_since_sync = 0;
     uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
 

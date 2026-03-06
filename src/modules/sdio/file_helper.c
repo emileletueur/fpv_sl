@@ -370,7 +370,7 @@ int8_t read_conf_file(void) {
             fpv_sl_config.buffer_size = parse_uint16(conf_item.value);
             break;
         case KEY_MONO_RECORD:
-            fpv_sl_config.mono_record = parse_uint16(conf_item.value);
+            fpv_sl_config.mono_record = parse_bool(conf_item.value);
             break;
         case KEY_FILE_INDEX:
             fpv_sl_config.file_index = parse_uint16(conf_item.value);
