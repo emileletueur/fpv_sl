@@ -123,7 +123,7 @@ When `use_uart_msp = true`, the module polls the FC over UART using the MSP prot
 
 **LiPo detection (`RECORD_ON_BOOT` mode):** when the measured battery voltage is below `msp_lipo_min_mv` (default `3000` mV), the module assumes it is USB-powered only (e.g., pre-flight GPS lock phase). In this state, recording does not start, but the triple-trigger delete feature remains active for in-field cleanup before the flight.
 
-**Wiring:** connect a free FC UART TX pin to the Pico UART RX pin configured by `msp_uart_id`. No TX→FC line is required for read-only polling.
+**Wiring:** two wires required — MSP is a request/response protocol, the Pico initiates every query. Connect FC UART TX → Pico UART RX, and Pico UART TX → FC UART RX. Enable `MSP` on the corresponding FC port in Betaflight/iNAV Ports tab.
 
 ---
 
