@@ -219,3 +219,4 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
   - [ ] Courant / mAh consommés
   - [ ] RSSI
 - [x] **Nettoyer ws2812.h** — Déclarations fantômes supprimées (`fix_*`, `toggle_*`), `COLOR_NAMES[]` et `char buffer[64]` inutilisés retirés de `ws2812.c`.
+- [ ] **Simulateur CDC — trigger ENABLE/ARM depuis PC** — `#define FPV_SL_CDC_SIM` dans `fpv_sl_loader.c` : quand USB détecté, sauter le MSC et lancer `fpv_sl_process_mode()` normalement en gardant TinyUSB+CDC actif. Appeler `tud_task()` dans `fpv_sl_core0_loop` entre les cycles SD write. Parser `tud_cdc_read()` dans Core 0 : commandes simples `e1`/`e0` → `fpv_sl_on_enable/disable()`, `r1`/`r0` → `fpv_sl_on_record/disarm()`. Utile pour tester la machine d'état sans câblage FC.
