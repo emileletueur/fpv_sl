@@ -84,11 +84,22 @@ Configured via `default.conf` on the SD card root:
 
 Toggle the ENABLE pin (or MSP arm signal) **3 times within 5 seconds** while **not recording** to delete all WAV files in the recording folder and reset the file index to 0. This is a quick in-field cleanup without needing to connect USB or a computer.
 
-- Only active in `RCD_ONLY` and `CLASSIC` modes (`RECORD_ON_BOOT` never triggers deletion).
-- Each toggle = one rising edge on the ENABLE pin (arm signal from the FC).
+- Only active while **not recording** — the counter is ignored during an active recording session.
+- Each toggle = one rising edge on the ENABLE pin (GPIO) or one activation of the configured MSP ENABLE channel.
 - If more than 5 seconds pass between two edges, the counter resets.
 - The LED shows **3 rapid short flashes** (debug) or **solid red** (production) while files are being deleted, then returns to the ready state.
 - Controlled by the `delete_on_triple_arm` config key.
+
+**Mode availability:**
+
+| Mode | Triple-trigger available |
+|---|---|
+| `RECORD_ON_BOOT` (GPIO) | Never — no ENABLE pin in this mode |
+| `RECORD_ON_BOOT` (MSP) | **USB-powered phase only** (before LiPo connection) — this is the only window where deletion is possible in this mode |
+| `RCD_ONLY` | Yes, in idle (between recordings) |
+| `CLASSIC` | Yes, in idle (ENABLE active but not yet armed) |
+
+> **`RECORD_ON_BOOT` + MSP:** when the FC is powered by USB only (no LiPo, `vbat < msp_lipo_min_mv`), recording is held. This USB-powered phase — typically used for pre-flight GPS lock — is the **only opportunity** to trigger a file deletion before the flight starts. Once the LiPo is connected, recording begins immediately and triple-trigger is no longer checked.
 
 ---
 
