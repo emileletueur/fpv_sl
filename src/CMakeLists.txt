@@ -57,8 +57,10 @@ target_include_directories(fpv_sl_logging INTERFACE
 
 # Add subdirectories with additional CMakeLists.txt
 add_subdirectory(drivers/no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI build)
+add_subdirectory(drivers/msp)
 add_subdirectory(modules)
 add_subdirectory(modules/gpio)
+add_subdirectory(modules/msp)
 add_subdirectory(modules/sdio)
 add_subdirectory(modules/audio_buffer)
 add_subdirectory(utils)
@@ -97,6 +99,7 @@ target_link_libraries(fpv_sl_loader
         pico_unique_id
         utils
         gpio
+        msp
         sdio
         audio_buffer
         ws2812

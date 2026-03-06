@@ -9,6 +9,7 @@ target_include_directories(fpv_sl_core PUBLIC
 target_link_libraries(fpv_sl_core PUBLIC
     fpv_sl_config
     audio_buffer
+    msp
     sdio
     i2s_mic
     status_indicator

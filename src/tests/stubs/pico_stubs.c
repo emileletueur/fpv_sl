@@ -34,6 +34,11 @@ int8_t get_disk_usage_percent(uint8_t *out_pct)          { if (out_pct) *out_pct
 
 int8_t flush_audio_files(void) { return 0; }
 
+/* ── msp_interface ───────────────────────────────────────────────────────── */
+
+void msp_poll_if_due(void)        {}
+bool msp_is_lipo_connected(void)  { return true; }
+
 /* ── status_indicator ───────────────────────────────────────────────────── */
 
 void status_indicator_init(void)              {}

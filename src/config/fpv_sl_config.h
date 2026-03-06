@@ -24,6 +24,10 @@
 #define USE_UART_MSP "USE_UART_MSP"
 #define MSP_UART_ID "MSP_UART_ID"
 #define MSP_BAUD_RATE "MSP_BAUD_RATE"
+#define MSP_ENABLE_CHANNEL    "MSP_ENABLE_CHANNEL"
+#define MSP_CHANNEL_RANGE_MIN "MSP_CHANNEL_RANGE_MIN"
+#define MSP_CHANNEL_RANGE_MAX "MSP_CHANNEL_RANGE_MAX"
+#define MSP_LIPO_MIN_MV       "MSP_LIPO_MIN_MV"
 #endif
 
 typedef struct {
@@ -52,6 +56,10 @@ typedef enum {
     KEY_USE_UART_MSP,
     KEY_MSP_UART_ID,
     KEY_MSP_BAUD_RATE,
+    KEY_MSP_ENABLE_CHANNEL,
+    KEY_MSP_CHANNEL_RANGE_MIN,
+    KEY_MSP_CHANNEL_RANGE_MAX,
+    KEY_MSP_LIPO_MIN_MV,
 } config_key_enum_t;
 
 typedef struct {
@@ -71,9 +79,13 @@ typedef struct {
     char *record_prefix;
     bool delete_on_triple_arm;
     uint16_t max_record_duration;  /* durée max d'enregistrement en secondes (pré-allocation) */
-    bool     use_uart_msp;      /* active le polling MSP via UART pour le trigger ARM */
-    uint8_t  msp_uart_id;       /* UART Pico utilisé pour MSP : 0 ou 1 */
-    uint32_t msp_baud_rate;     /* baud rate MSP : 115200 / 230400 / 460800 */
+    bool     use_uart_msp;          /* active le polling MSP via UART pour le trigger ARM */
+    uint8_t  msp_uart_id;           /* UART Pico utilisé pour MSP : 0 ou 1 */
+    uint32_t msp_baud_rate;         /* baud rate MSP : 115200 / 230400 / 460800 */
+    uint8_t  msp_enable_channel;    /* canal RC 1-based pour le trigger ENABLE (ex. AUX1 = 5) */
+    uint16_t msp_channel_range_min; /* µs — début de la plage active du canal */
+    uint16_t msp_channel_range_max; /* µs — fin de la plage active du canal */
+    uint16_t msp_lipo_min_mv;       /* tension minimale LiPo en mV (ex. 3000 = 3 V/cell) */
 } fpv_sl_conf_t;
 
 key_value_pair_t parse_conf_key_value(char *line);

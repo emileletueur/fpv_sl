@@ -44,6 +44,10 @@ static uint32_t g_audio_bytes_written = 0;
 #define DEFAULT_USE_UART_MSP              false
 #define DEFAULT_MSP_UART_ID               1
 #define DEFAULT_MSP_BAUD_RATE             115200
+#define DEFAULT_MSP_ENABLE_CHANNEL        5
+#define DEFAULT_MSP_CHANNEL_RANGE_MIN     1700
+#define DEFAULT_MSP_CHANNEL_RANGE_MAX     2100
+#define DEFAULT_MSP_LIPO_MIN_MV           3000
 
 static void apply_defaults(void) {
     fpv_sl_config.record_on_boot                 = DEFAULT_RECORD_ON_BOOT;
@@ -62,6 +66,10 @@ static void apply_defaults(void) {
     fpv_sl_config.use_uart_msp                   = DEFAULT_USE_UART_MSP;
     fpv_sl_config.msp_uart_id                    = DEFAULT_MSP_UART_ID;
     fpv_sl_config.msp_baud_rate                  = DEFAULT_MSP_BAUD_RATE;
+    fpv_sl_config.msp_enable_channel             = DEFAULT_MSP_ENABLE_CHANNEL;
+    fpv_sl_config.msp_channel_range_min          = DEFAULT_MSP_CHANNEL_RANGE_MIN;
+    fpv_sl_config.msp_channel_range_max          = DEFAULT_MSP_CHANNEL_RANGE_MAX;
+    fpv_sl_config.msp_lipo_min_mv               = DEFAULT_MSP_LIPO_MIN_MV;
     strncpy(s_record_folder,    DEFAULT_RECORD_FOLDER,    sizeof(s_record_folder) - 1);
     strncpy(s_record_prefix, DEFAULT_RECORD_PREFIX, sizeof(s_record_prefix) - 1);
     fpv_sl_config.record_folder    = s_record_folder;
@@ -94,7 +102,11 @@ static int8_t write_default_conf(void) {
         MAX_RECORD_DURATION            " %u\n"
         USE_UART_MSP                " %s\n"
         MSP_UART_ID                 " %u\n"
-        MSP_BAUD_RATE               " %lu\n",
+        MSP_BAUD_RATE               " %lu\n"
+        MSP_ENABLE_CHANNEL          " %u\n"
+        MSP_CHANNEL_RANGE_MIN       " %u\n"
+        MSP_CHANNEL_RANGE_MAX       " %u\n"
+        MSP_LIPO_MIN_MV             " %u\n",
         DEFAULT_RECORD_ON_BOOT             ? "true" : "false",
         DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
         DEFAULT_MIC_GAIN,
@@ -112,7 +124,11 @@ static int8_t write_default_conf(void) {
         DEFAULT_MAX_RECORD_DURATION,
         DEFAULT_USE_UART_MSP           ? "true" : "false",
         DEFAULT_MSP_UART_ID,
-        (unsigned long)DEFAULT_MSP_BAUD_RATE);
+        (unsigned long)DEFAULT_MSP_BAUD_RATE,
+        DEFAULT_MSP_ENABLE_CHANNEL,
+        DEFAULT_MSP_CHANNEL_RANGE_MIN,
+        DEFAULT_MSP_CHANNEL_RANGE_MAX,
+        DEFAULT_MSP_LIPO_MIN_MV);
     if (len < 0 || (size_t)len >= sizeof(buf)) {
         LOGE("write_default_conf: snprintf overflow.");
         f_close(&file_p);
@@ -200,6 +216,14 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_MSP_UART_ID;
     if (strcmp(key, MSP_BAUD_RATE) == 0)
         return KEY_MSP_BAUD_RATE;
+    if (strcmp(key, MSP_ENABLE_CHANNEL) == 0)
+        return KEY_MSP_ENABLE_CHANNEL;
+    if (strcmp(key, MSP_CHANNEL_RANGE_MIN) == 0)
+        return KEY_MSP_CHANNEL_RANGE_MIN;
+    if (strcmp(key, MSP_CHANNEL_RANGE_MAX) == 0)
+        return KEY_MSP_CHANNEL_RANGE_MAX;
+    if (strcmp(key, MSP_LIPO_MIN_MV) == 0)
+        return KEY_MSP_LIPO_MIN_MV;
     return KEY_UNKNOWN;
 }
 
@@ -415,6 +439,18 @@ int8_t read_conf_file(void) {
             break;
         case KEY_MSP_BAUD_RATE:
             fpv_sl_config.msp_baud_rate = parse_uint32(conf_item.value);
+            break;
+        case KEY_MSP_ENABLE_CHANNEL:
+            fpv_sl_config.msp_enable_channel = parse_uint8(conf_item.value);
+            break;
+        case KEY_MSP_CHANNEL_RANGE_MIN:
+            fpv_sl_config.msp_channel_range_min = parse_uint16(conf_item.value);
+            break;
+        case KEY_MSP_CHANNEL_RANGE_MAX:
+            fpv_sl_config.msp_channel_range_max = parse_uint16(conf_item.value);
+            break;
+        case KEY_MSP_LIPO_MIN_MV:
+            fpv_sl_config.msp_lipo_min_mv = parse_uint16(conf_item.value);
             break;
         case KEY_UNKNOWN:
             break;

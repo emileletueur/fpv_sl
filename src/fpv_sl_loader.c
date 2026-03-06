@@ -5,6 +5,7 @@
 #include "fpv_sl_core.h"
 #include "i2s_mic.h"
 #include "modules/gpio/gpio_interface.h"
+#include "modules/msp/msp_interface.h"
 #include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
 #include "pico/multicore.h"
@@ -87,11 +88,23 @@ int main() {
                 .sample_rate = conf->sample_rate, .is_mono = conf->mono_record, .buffer_size = 2048};
             init_i2s_mic(&i2s_mic_conf);
 
-            // Initialize Flight Controller GPIO interface
-            // Dans le cas où on utilise les GPIO
-            initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_disable, fpv_sl_on_record, fpv_sl_on_disarm);
-            // Ou via UART avec protocole MSP
-            // initialize_msp_interface(fpv_sl_on_enable, fpv_sl_on_disable, fpv_sl_on_record, fpv_sl_on_disarm);
+            // Initialize Flight Controller interface (GPIO ou MSP selon config)
+            if (conf->use_uart_msp) {
+                msp_conf_t msp_conf = {
+                    .uart_id           = conf->msp_uart_id,
+                    .baud_rate         = conf->msp_baud_rate,
+                    .enable_channel    = conf->msp_enable_channel,
+                    .channel_range_min = conf->msp_channel_range_min,
+                    .channel_range_max = conf->msp_channel_range_max,
+                    .lipo_min_mv       = conf->msp_lipo_min_mv,
+                };
+                initialize_msp_interface(&msp_conf,
+                    fpv_sl_on_enable, fpv_sl_on_disable,
+                    fpv_sl_on_record, fpv_sl_on_disarm);
+            } else {
+                initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_disable,
+                    fpv_sl_on_record, fpv_sl_on_disarm);
+            }
 
             // Determine execution mode
             get_mode_from_config(conf);

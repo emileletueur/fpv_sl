@@ -4,6 +4,7 @@
 #include "debug_log.h"
 #include "file_helper.h"
 #include "i2s_mic.h"
+#include "msp/msp_interface.h"
 #include "pico/mutex.h"
 #include "pico/time.h"
 #include "status_indicator.h"
@@ -156,6 +157,25 @@ void fpv_sl_process_mode(void) {
         /* Enregistrement continu, découpé en fichiers de max_record_duration s. */
         g_max_record_ms = (uint32_t)fpv_sl_conf->max_record_duration * 1000UL;
         LOGI("ALWAY_RCD — max file duration %lu ms.", g_max_record_ms);
+
+        /* Si MSP actif : attendre que la LiPo soit connectée (vbat >= lipo_min_mv).
+           Permet de ne pas enregistrer quand le FC tourne sur USB en pré-vol. */
+        if (fpv_sl_conf->use_uart_msp) {
+            LOGI("ALWAY_RCD — attente LiPo MSP.");
+            while (!msp_is_lipo_connected()) {
+                msp_poll_if_due();
+                if (g_delete_requested) {
+                    LOGI("ALWAY_RCD — triple-trigger pendant attente LiPo: flush.");
+                    set_module_flushing_status();
+                    flush_audio_files();
+                    g_delete_requested = false;
+                    set_module_powered_status();
+                }
+                tight_loop_contents();
+            }
+            LOGI("ALWAY_RCD — LiPo connectée, démarrage enregistrement.");
+        }
+
         while (1) {
             create_wav_file();
             set_module_recording_status();
@@ -176,6 +196,7 @@ void fpv_sl_process_mode(void) {
         set_module_record_ready_status();
         while (1) {
             while (!g_recording) {
+                msp_poll_if_due();
                 if (g_delete_requested) {
                     LOGI("RCD_ONLY — triple-trigger: flush audio files.");
                     set_module_flushing_status();
@@ -203,8 +224,10 @@ void fpv_sl_process_mode(void) {
         /* I2S démarré à ENABLE uniquement. Boucle ENABLE → ARM/DISARM → DISABLE. */
         LOGI("CLASSIC — attente ENABLE.");
         while (1) {
-            while (!g_enabled)
+            while (!g_enabled) {
+                msp_poll_if_due();
                 tight_loop_contents();
+            }
 
             if (g_delete_requested) {
                 LOGI("CLASSIC — triple-trigger: flush audio files.");
@@ -212,8 +235,10 @@ void fpv_sl_process_mode(void) {
                 flush_audio_files();
                 g_delete_requested = false;
                 /* Attend que g_enabled retombe (l'utilisateur relâche le 3ème trigger). */
-                while (g_enabled)
+                while (g_enabled) {
+                    msp_poll_if_due();
                     tight_loop_contents();
+                }
                 continue;
             }
 
@@ -223,8 +248,10 @@ void fpv_sl_process_mode(void) {
             set_module_record_ready_status();
 
             while (g_enabled) {
-                while (g_enabled && !g_recording)
+                while (g_enabled && !g_recording) {
+                    msp_poll_if_due();
                     tight_loop_contents();
+                }
                 if (!g_enabled)
                     break;
                 set_module_recording_status();
@@ -284,6 +311,7 @@ void fpv_sl_core0_loop(void) {
     uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
 
     while (g_recording) {
+        msp_poll_if_due();
         if (!is_data_ready()) {
             tight_loop_contents();
             continue;

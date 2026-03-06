@@ -113,6 +113,8 @@ If `default.conf` is absent, factory defaults are applied and the file is create
 | `config/` | `default.conf` parser, `fpv_sl_conf_t` definition |
 | `usb/` | TinyUSB MSC + CDC descriptors and disk backend |
 | `utils/` | `debug_log.h` (`LOGE/LOGW/LOGI/LOGD` macros), string cast helpers |
+| `drivers/msp/` | MSP v1 protocol driver (UART, state-machine parser, CRC) |
+| `modules/msp/` | MSP business logic — 30 Hz polling, ARM/ENABLE edge detection, LiPo detection |
 | `drivers/no-OS-FatFS-SD-SPI-RPi-Pico/` | Third-party FatFS over SPI SD library |
 
 ### Pin assignment
@@ -124,6 +126,7 @@ Default pins (overridable via `USE_CUSTOM_BOARD_PINS` in `modules/fpv_sl_core_bo
 | I2S SD/SCK/WS | 26 / 27 / 28 |
 | SPI SD SCK/MOSI/MISO/CS | 10 / 11 / 12 / 13 |
 | FC ENABLE / RECORD | 1 / 2 (production) — 2 / 3 (debug probe) |
+| MSP UART TX / RX | 4 / 5 (UART1, overridable via `PIN_MSP_UART_TX/RX`) |
 | WS2812 LED | 16 |
 | Onboard LED (debug) | 25 |
 
@@ -203,7 +206,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [x] **Filtre passe-bas + passe-bande** — `lp_filter_t` ajouté dans `fpv_sl_core.h`. `process_sample(hp, lp, sample)` : HP et LP sont des pointeurs nullables (bypass si NULL). Alphas calculés depuis config (`compute_hp_alpha`/`compute_lp_alpha`) dans `get_mode_from_config`. Clés `USE_LOW_PASS_FILTER` + `LOW_PASS_CUTOFF_FREQ` (uint16, défaut 8000 Hz) dans config + parser + `write_default_conf`. `use_high_pass_filter` et `high_pass_cutoff_freq` effectivement respectés (bug corrigé : alpha était hardcodé). 7 nouveaux tests host Unity (alpha, LP DC/Nyquist, passe-bande).
 - [ ] **Gain automatique (AGC)** — étudier un contrôle automatique de gain pour normaliser le niveau du signal selon l'amplitude mesurée sur fenêtre glissante.
 - [x] **[MSP 1/5] Clé de config `use_uart_msp`** — `use_uart_msp` (bool), `msp_uart_id` (uint8), `msp_baud_rate` (uint32) dans `fpv_sl_conf_t` + parser + defaults (false / UART1 / 115200). Documenté dans README.
-- [ ] **[MSP 2/5] Polling MSP ARM + ENABLE trigger** — init UART dédié, polling uniforme **30 Hz** (idle et recording). Deux messages par cycle : `MSP_STATUS` (cmd 101, flag `armed` → `fpv_sl_on_record/disarm`) + `MSP_RC` (cmd 105, canal `msp_enable_channel` → `fpv_sl_on_enable/disable` + triple-trigger). `MSP_ANALOG` (cmd 110, `vbat`) lu au même tick pour détection USB-only. Mêmes 4 callbacks que GPIO → machine d'état `fpv_sl_core` inchangée. Nouvelles clés de config : `msp_enable_channel` (uint8, défaut `5`), `msp_channel_range_min` / `msp_channel_range_max` (uint16, défauts `1700` / `2100` µs — plage active, comme les sliders Betaflight), `msp_lipo_min_mv` (uint16, défaut `3000`). Condition active : `range_min <= value <= range_max`. En `ALWAY_RCD_TYPE` : si `vbat < msp_lipo_min_mv` → pas d'enregistrement (USB-only, ex. accroche GPS pré-vol) mais triple-trigger actif pour flush fichiers.
+- [x] **[MSP 2/5] Polling MSP ARM + ENABLE trigger** — init UART dédié, polling uniforme **30 Hz** (idle et recording). Deux messages par cycle : `MSP_STATUS` (cmd 101, flag `armed` → `fpv_sl_on_record/disarm`) + `MSP_RC` (cmd 105, canal `msp_enable_channel` → `fpv_sl_on_enable/disable` + triple-trigger). `MSP_ANALOG` (cmd 110, `vbat`) lu au même tick pour détection USB-only. Mêmes 4 callbacks que GPIO → machine d'état `fpv_sl_core` inchangée. Nouvelles clés de config : `msp_enable_channel` (uint8, défaut `5`), `msp_channel_range_min` / `msp_channel_range_max` (uint16, défauts `1700` / `2100` µs — plage active, comme les sliders Betaflight), `msp_lipo_min_mv` (uint16, défaut `3000`). Condition active : `range_min <= value <= range_max`. En `ALWAY_RCD_TYPE` : si `vbat < msp_lipo_min_mv` → pas d'enregistrement (USB-only, ex. accroche GPS pré-vol) mais triple-trigger actif pour flush fichiers.
 - [ ] **[MSP 3/5] Struct télémétrie `fpv_sl_telemetry_t`** — struct binaire fixe timestampée (`uint32_t ms`) : RC channels 4 sticks + AUX (uint16 ×N), attitude roll/pitch/yaw (int16 ×3), GPS fix/lat/lon/alt/speed, analog tension/mAh/RSSI/ampères. Format binaire compact, fichier `.tlm` sur SD corrélable avec l'audio par timestamp.
 - [ ] **[MSP 4/5] Valorisation MSP de la struct** — `MSP_RC` (105) déjà polled en [MSP 2/5] → sticks CH1–4 gratuits. Étendre avec `MSP_ATTITUDE` (108) + `MSP_RAW_GPS` (106) + `MSP_ANALOG` (110, déjà polled) → remplissage `fpv_sl_telemetry_t` → écriture SD bufferisée pour ne pas bloquer Core 0. ~145 bytes/cycle × 30 Hz = ~4 kB/s.
 - [ ] **[MSP 5/5] Support MAVLink (ArduPilot / avions)** — second parser sur le même UART (auto-détection ou clé `use_uart_mavlink`). `HEARTBEAT` → arm trigger (même machine d'état). Messages périodiques push → mêmes champs `fpv_sl_telemetry_t`. Couvre iNAV en MAVLink et ArduPilot fixed-wing.
