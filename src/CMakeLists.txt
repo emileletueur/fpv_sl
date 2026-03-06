@@ -116,3 +116,48 @@ if(FPV_SL_BUILD_TARGET_TESTS)
     message(STATUS "FPV_SL: on-target tests activés — cible fpv_sl_test_runner")
     add_subdirectory(tests/target)
 endif()
+
+# ── Smoke test (validation matérielle autonome) ────────────────────────────
+# Enregistre un fichier WAV sans USB ni GPIO ni MSP.
+# Usage: cmake -DFPV_SL_BUILD_SMOKE_TEST=ON \
+#              [-DSMOKE_WAIT_MS=10000] [-DSMOKE_RECORD_MS=10000] \
+#              -S src -B src/build -G Ninja
+# Build: cmake --build src/build --target fpv_sl_smoke_test
+option(FPV_SL_BUILD_SMOKE_TEST "Build smoke test binary (validation SD + I2S + dual-core)" OFF)
+if(FPV_SL_BUILD_SMOKE_TEST)
+    set(SMOKE_WAIT_MS   10000 CACHE STRING "Délai avant enregistrement (ms)")
+    set(SMOKE_RECORD_MS 10000 CACHE STRING "Durée d'enregistrement (ms)")
+    message(STATUS "FPV_SL: smoke test activé (wait=${SMOKE_WAIT_MS} ms, record=${SMOKE_RECORD_MS} ms)")
+
+    add_executable(fpv_sl_smoke_test
+        fpv_sl_smoke_test.c
+        tests/target/debug_log_stub.c   # printf → stdio_usb SDK (pas de TinyUSB)
+    )
+
+    target_compile_definitions(fpv_sl_smoke_test PRIVATE
+        SMOKE_WAIT_MS=${SMOKE_WAIT_MS}
+        SMOKE_RECORD_MS=${SMOKE_RECORD_MS}
+        DEBUG_LOG_ENABLE
+        LOG_LEVEL=LOG_LEVEL_DBG
+    )
+
+    target_include_directories(fpv_sl_smoke_test PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/modules
+        ${CMAKE_CURRENT_LIST_DIR}/utils
+    )
+
+    target_link_libraries(fpv_sl_smoke_test
+        fpv_sl_core
+        sdio
+        i2s_mic
+        status_indicator
+        audio_buffer
+        pico_stdlib
+        pico_multicore
+    )
+
+    pico_enable_stdio_usb(fpv_sl_smoke_test 1)
+    pico_enable_stdio_uart(fpv_sl_smoke_test 0)
+    pico_add_extra_outputs(fpv_sl_smoke_test)
+endif()
