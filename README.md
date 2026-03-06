@@ -92,6 +92,30 @@ Toggle the ENABLE pin (or MSP arm signal) **3 times within 5 seconds** while **n
 
 ---
 
+## MSP interface (Betaflight / iNAV)
+
+When `use_uart_msp = true`, the module polls the FC over UART using the MSP protocol instead of (or alongside) the GPIO pins.
+
+**Polling rate:** 30 Hz, both in idle and recording modes.
+
+**Messages polled each cycle:**
+
+| MSP message | Cmd | Used for |
+|---|---|---|
+| `MSP_STATUS` | 101 | ARM flag → `on_record` / `on_disarm` callbacks |
+| `MSP_RC` | 105 | ENABLE channel value → `on_enable` / `on_disable` + triple-trigger |
+| `MSP_ANALOG` | 110 | Battery voltage → LiPo detection (see below) |
+
+**ENABLE channel:** configure `msp_enable_channel` (default `5` = AUX1) and the active range (`msp_channel_range_min` / `msp_channel_range_max`, default `1700`–`2100` µs). This works like the Betaflight mode sliders — the channel is considered active when its value falls within the range, allowing use of any position of a 2- or 3-position switch.
+
+**ARM signal:** detected via `MSP_STATUS.armed` flag — no channel config needed.
+
+**LiPo detection (`RECORD_ON_BOOT` mode):** when the measured battery voltage is below `msp_lipo_min_mv` (default `3000` mV), the module assumes it is USB-powered only (e.g., pre-flight GPS lock phase). In this state, recording does not start, but the triple-trigger delete feature remains active for in-field cleanup before the flight.
+
+**Wiring:** connect a free FC UART TX pin to the Pico UART RX pin configured by `msp_uart_id`. No TX→FC line is required for read-only polling.
+
+---
+
 ## USB
 
 When connected to a computer, the module enumerates as a **USB Mass Storage (MSC)** device, exposing the SD card contents. A **CDC** interface is also available for debug logging over serial.
@@ -153,6 +177,10 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | `use_uart_msp` | `true` / `false` | Enable MSP polling over UART to detect FC arm state and trigger recording (replaces or complements GPIO pins) |
 | `msp_uart_id` | `0` / `1` | Pico UART peripheral to use for MSP (default `1`) |
 | `msp_baud_rate` | e.g. `115200`, `230400`, `460800` | Baud rate for the MSP UART (default `115200`) |
+| `msp_enable_channel` | `1` – `16` | RC channel number (1-based) used as the ENABLE signal via MSP. Maps to AUX1=5, AUX2=6, etc. Used for CLASSIC mode gating and triple-trigger delete. Default `5`. |
+| `msp_channel_range_min` | `1000` – `2000` | Lower bound (µs) of the active range for the ENABLE channel, like the Betaflight mode slider. Default `1700`. |
+| `msp_channel_range_max` | `1000` – `2000` | Upper bound (µs) of the active range for the ENABLE channel. Default `2100`. |
+| `msp_lipo_min_mv` | mV (default `3000`) | Minimum battery voltage (mV) to consider a LiPo connected. Below this threshold (USB-only power), `RECORD_ON_BOOT` mode holds recording until LiPo is detected, while still allowing triple-trigger delete. |
 
 ---
 
