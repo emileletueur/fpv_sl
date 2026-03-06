@@ -127,13 +127,13 @@ Toggle the ENABLE pin (or MSP arm signal) **3 times within 5 seconds** while **n
 
 ## MSP interface (Betaflight / iNAV)
 
-When `use_uart_msp = true`, the module polls the FC over UART using the MSP protocol instead of (or alongside) the GPIO pins.
+When `use_uart_msp = true`, the module polls the FC over UART using the **MSP v2** protocol (`$X` framing, CRC8 DVB-S2) instead of (or alongside) the GPIO pins.
 
 **Polling rate:** 30 Hz, both in idle and recording modes.
 
 **Messages polled each cycle:**
 
-| MSP message | Cmd | Used for |
+| MSP message | Function ID | Used for |
 |---|---|---|
 | `MSP_STATUS` | 101 | ARM flag → `on_record` / `on_disarm` callbacks |
 | `MSP_RC` | 105 | ENABLE channel value → `on_enable` / `on_disable` + triple-trigger |
