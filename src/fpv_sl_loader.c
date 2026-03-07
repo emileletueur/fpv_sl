@@ -37,6 +37,7 @@ int main() {
     board_init_after_tusb();
 
     // Init SD card (SPI + disk_initialize) — opération bloquante, avant tusb_init().
+    // SD SPI configuré sur DMA_IRQ_1 pour laisser DMA_IRQ_0 libre pour l'I2S mic.
     tud_msc_request_mount();
 
     // Chargement config + récupération enregistrement non finalisé avant USB.

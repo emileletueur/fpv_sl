@@ -2,6 +2,7 @@
 #include "ff.h"
 #include "diskio.h"
 #include "hw_config.h"
+#include "spi.h"
 #include "tusb.h"
 #include <pico/stdlib.h>
 #include "debug_log.h"
@@ -21,23 +22,23 @@ static volatile bool storage_init_in_progress = false;
 static uint32_t cached_block_count = 0;
 
 bool tud_msc_request_mount() {
-    // DSTATUS ds = disk_initialize(MSC_LUN);
-    // return (!(STA_NOINIT & ds) && !(STA_NODISK & ds));
-
     if (storage_ready || storage_init_in_progress) {
         return false;
-    } else {
-        storage_init_in_progress = true;
-
-        DSTATUS ds = disk_initialize(MSC_LUN);
-        if (!(ds & (STA_NOINIT | STA_NODISK))) {
-            disk_ioctl(MSC_LUN, GET_SECTOR_COUNT, &cached_block_count);
-            storage_ready = true;
-        }
-
-        storage_init_in_progress = false;
-        return true;
     }
+
+    storage_init_in_progress = true;
+
+    /* SD SPI sur DMA_IRQ_1 — DMA_IRQ_0 réservé au driver I2S mic. */
+    set_spi_dma_irq_channel(true, false);
+
+    DSTATUS ds = disk_initialize(MSC_LUN);
+    if (!(ds & (STA_NOINIT | STA_NODISK))) {
+        disk_ioctl(MSC_LUN, GET_SECTOR_COUNT, &cached_block_count);
+        storage_ready = true;
+    }
+
+    storage_init_in_progress = false;
+    return true;
 }
 
 // Public function to check MSC activity
