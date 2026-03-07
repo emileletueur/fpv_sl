@@ -45,6 +45,12 @@ if(FPV_SL_PICO_PROBE_DEBUG)
     add_compile_definitions(FPV_SL_PICO_PROBE_DEBUG)    # GPIO FC remap GP2/GP3 + simulateurs GP8/GP9
 endif()
 
+option(FPV_SL_CDC_SIM "Simulateur CDC — trigger ENABLE/ARM depuis PC via USB (test sans FC)" OFF)
+if(FPV_SL_CDC_SIM)
+    message(STATUS "FPV_SL: CDC SIM activé — commandes e1/e0/r1/r0 via port série USB")
+    add_compile_definitions(FPV_SL_CDC_SIM)
+endif()
+
 add_library(fpv_sl_logging INTERFACE)
 target_compile_definitions(fpv_sl_logging INTERFACE
     DEBUG_LOG_ENABLE

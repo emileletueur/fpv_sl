@@ -69,6 +69,7 @@ int main() {
     }
 
     if (is_device_enumerated) {
+#ifndef FPV_SL_CDC_SIM
         LOGI("USB init OK.");
         // Unmount FatFS before MSC takes over SD card sector access.
         f_mount(NULL, "0:", 0);
@@ -77,6 +78,10 @@ int main() {
             tud_task();
             process_msc_activity();
         }
+#else
+        LOGI("USB CDC SIM — mode enregistrement avec CDC actif.");
+        /* FatFS reste monté. Core 0 appellera fpv_sl_cdc_task() entre les blocs. */
+#endif
     } else {
         LOGI("USB timeout — recording mode.");
         tud_disconnect();
@@ -121,3 +126,22 @@ int main() {
         }
     }
 }
+
+#ifdef FPV_SL_CDC_SIM
+/* Appelé par fpv_sl_core.c via cdc_poll() à chaque bloc audio et dans les boucles idle.
+   Commandes CDC (2 octets) : e1/e0 → ENABLE/DISABLE, r1/r0 → ARM/DISARM. */
+void fpv_sl_cdc_task(void) {
+    tud_task();
+    if (!tud_cdc_available())
+        return;
+    char buf[8];
+    uint32_t n = tud_cdc_read(buf, sizeof(buf));
+    for (uint32_t i = 0; i + 1 < n; i++) {
+        char cmd = buf[i], val = buf[i + 1];
+        if      (cmd == 'e' && val == '1') { fpv_sl_on_enable();  i++; }
+        else if (cmd == 'e' && val == '0') { fpv_sl_on_disable(); i++; }
+        else if (cmd == 'r' && val == '1') { fpv_sl_on_record();  i++; }
+        else if (cmd == 'r' && val == '0') { fpv_sl_on_disarm();  i++; }
+    }
+}
+#endif

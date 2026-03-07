@@ -28,16 +28,24 @@ uint32_t get_current_data_count(void){
     return i2s_mic->current_data_count;
 }
 
+uint32_t i2s_mic_get_overrun_count(void) {
+    return i2s_mic->overrun_count;
+}
+
 void dma_handler() {
     uint irq0_status = dma_hw->ints0;
     if (irq0_status & (1u << i2s_mic->dma_chan_ping)) {
         dma_hw->ints0 = (1u << i2s_mic->dma_chan_ping);
+        if (i2s_mic->data_ready)
+            i2s_mic->overrun_count++; /* Core 0 n'a pas consommé le bloc précédent */
         i2s_mic->active_buffer_ptr = i2s_mic->buffer_ping;
         i2s_mic->current_data_count = i2s_mic->buffer_size;
         i2s_mic->data_ready = true;
     }
     if (irq0_status & (1u << i2s_mic->dma_chan_pong)) {
         dma_hw->ints0 = (1u << i2s_mic->dma_chan_pong);
+        if (i2s_mic->data_ready)
+            i2s_mic->overrun_count++;
         i2s_mic->active_buffer_ptr = i2s_mic->buffer_pong;
         i2s_mic->current_data_count = i2s_mic->buffer_size;
         i2s_mic->data_ready = true;
@@ -82,6 +90,7 @@ void init_i2s_mic(i2s_mic_t *i2s_mic_config) {
     i2s_mic->data_ready = false;
     i2s_mic->active_buffer_ptr = NULL;
     i2s_mic->current_data_count = 0;
+    i2s_mic->overrun_count = 0;
 
     uint offset = pio_add_program(pio, &audio_i2s_program);
     float divider = (float) clock_get_hz(clk_sys) / (i2s_mic->sample_rate * 32 * 2 * 2);

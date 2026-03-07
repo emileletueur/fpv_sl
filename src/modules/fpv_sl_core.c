@@ -19,6 +19,15 @@
 
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
 
+/* CDC Simulator : fpv_sl_cdc_task() est défini dans fpv_sl_loader.c quand
+   FPV_SL_CDC_SIM est actif — appelé via cdc_poll() qui est un no-op sinon. */
+#ifdef FPV_SL_CDC_SIM
+extern void fpv_sl_cdc_task(void);
+static inline void cdc_poll(void) { fpv_sl_cdc_task(); }
+#else
+static inline void cdc_poll(void) {}
+#endif
+
 static hp_filter_t filter_L    = {0};
 static hp_filter_t filter_R    = {0};
 static lp_filter_t filter_L_lp = {0};
@@ -172,6 +181,7 @@ void fpv_sl_process_mode(void) {
                     g_delete_requested = false;
                     set_module_powered_status();
                 }
+                cdc_poll();
                 tight_loop_contents();
             }
             LOGI("ALWAY_RCD — LiPo connectée, démarrage enregistrement.");
@@ -210,6 +220,7 @@ void fpv_sl_process_mode(void) {
                     create_wav_file();
                     set_module_record_ready_status();
                 }
+                cdc_poll();
                 tight_loop_contents();
             }
             set_module_recording_status();
@@ -235,6 +246,7 @@ void fpv_sl_process_mode(void) {
         while (1) {
             while (!g_enabled) {
                 msp_poll_if_due();
+                cdc_poll();
                 tight_loop_contents();
             }
 
@@ -246,6 +258,7 @@ void fpv_sl_process_mode(void) {
                 /* Attend que g_enabled retombe (l'utilisateur relâche le 3ème trigger). */
                 while (g_enabled) {
                     msp_poll_if_due();
+                    cdc_poll();
                     tight_loop_contents();
                 }
                 continue;
@@ -259,6 +272,7 @@ void fpv_sl_process_mode(void) {
             while (g_enabled) {
                 while (g_enabled && !g_recording) {
                     msp_poll_if_due();
+                    cdc_poll();
                     tight_loop_contents();
                 }
                 if (!g_enabled)
@@ -331,6 +345,7 @@ void fpv_sl_core0_loop(void) {
                 tlm_writer_write(rec, rlen);
         }
         if (!is_data_ready()) {
+            cdc_poll();
             tight_loop_contents();
             continue;
         }
@@ -338,6 +353,7 @@ void fpv_sl_core0_loop(void) {
         multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
         uint32_t filtered_addr = multicore_fifo_pop_blocking();
         write_buffer((uint32_t *) filtered_addr);
+        cdc_poll();
 
         blocks_since_sync++;
         if (blocks_since_sync >= SYNC_PERIOD_BLOCKS) {
@@ -351,6 +367,12 @@ void fpv_sl_core0_loop(void) {
                 g_recording = false;
         }
     }
+
+    uint32_t overruns = i2s_mic_get_overrun_count();
+    if (overruns > 0)
+        LOGW("I2S: %lu bloc(s) perdus (overrun DMA — Core 0 trop lent).", overruns);
+    else
+        LOGI("I2S: aucun overrun.");
 }
 
 void fpv_sl_core1_loop(void) {

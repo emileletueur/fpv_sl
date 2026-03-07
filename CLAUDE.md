@@ -185,10 +185,11 @@ ctest --test-dir src/tests/build_host -V
 | `test_config_parser` | `parse_conf_key_value`, `string_to_key_enum` (dans `file_helper.c`) | `ff.h` (FatFS) |
 | `test_dsp_filter` | `process_sample` (dans `fpv_sl_core.c`) | `pico/multicore.h`, `pico/mutex.h`, `ff.h` + link stubs |
 | `test_recording_mode` | `get_mode_from_config`, `fpv_sl_process_mode` (dans `fpv_sl_core.c`) | mêmes que `test_dsp_filter` |
+| `test_tlm_packing` | `tlm_record_size()`, `sizeof(tlm_file_header_t)` (dans `tlm_writer.h`) | aucune |
 
 Les stubs sont dans `src/tests/stubs/` : headers inline (`pico/`, `ff.h`) et `pico_stubs.c` pour les symboles link-time.
 
-**Note** : `process_sample` n'est pas déclarée dans `fpv_sl_core.h` (le header public déclare `apply_filter_and_gain`). La déclaration forward est dans `test_dsp_filter.c`.
+**Note** : `process_sample` n'est pas déclarée dans `fpv_sl_core.h`. La déclaration forward est dans `test_dsp_filter.c`.
 
 ### Logging
 
@@ -208,7 +209,7 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [x] **Vitesse de transfert en mode MSC** — plafond hardware RP2040 USB FS (~700 KB/s–1 MB/s). Code OK : DMA SPI actif, `CFG_TUD_MSC_EP_BUFSIZE=4096`, boucle `tud_task()` serrée, `write10_complete_cb` ajouté. Pas d'optimisation logicielle possible au-delà.
 - [x] **Pré-allocation WAV via `f_expand()`** — implémenté avec fallback, checkpoint header dans `sync_wav_file()`, truncate dans `finalize_wav_file()` et `recover_unfinalized_recording()`. Clé `MAX_RECORD_DURATION` ajoutée (défaut 300 s). Voir section *WAV file lifecycle* dans Architecture.
 - [x] **Flush audio sur triple-trigger ENABLE** (`DELETE_ON_TRIPLE_ARM`) — implémenté. Comptage dans `fpv_sl_on_enable()` (commun GPIO+MSP), `flush_audio_files()` dans `file_helper.c`, LED `set_module_flushing_status()` (rouge fixe prod, triple flash rapide debug). Check idle dans `RCD_ONLY` et `CLASSIC`. 4 tests Unity host (fenêtre, compteur, flag, clear). README documenté + note câblage ENABLE obligatoire en `RCD_ONLY`.
-- [ ] **Monitoring overflow ring buffer I2S** — vérifier si `i2s_mic` compte déjà les overflows ; sinon instrumenter. Exposer un compteur `overrun_count` loggable via `LOGW` et consultable en fin d'enregistrement. `audio_buffer.c` a déjà la structure (`overrun_count`, `audio_pipeline_get_overruns`) mais n'est pas branché sur le vrai pipeline.
+- [x] **Monitoring overflow ring buffer I2S** — `volatile uint32_t overrun_count` ajouté à `i2s_mic_t`. `dma_handler` incrémente si `data_ready` est déjà `true` au moment où le DMA fire (bloc précédent non consommé). `i2s_mic_get_overrun_count()` exposé. Log `LOGW` à la fin de chaque `fpv_sl_core0_loop()` si > 0, `LOGI` sinon.
 - [x] **Filtre passe-bas + passe-bande** — `lp_filter_t` ajouté dans `fpv_sl_core.h`. `process_sample(hp, lp, sample)` : HP et LP sont des pointeurs nullables (bypass si NULL). Alphas calculés depuis config (`compute_hp_alpha`/`compute_lp_alpha`) dans `get_mode_from_config`. Clés `USE_LOW_PASS_FILTER` + `LOW_PASS_CUTOFF_FREQ` (uint16, défaut 8000 Hz) dans config + parser + `write_default_conf`. `use_high_pass_filter` et `high_pass_cutoff_freq` effectivement respectés (bug corrigé : alpha était hardcodé). 7 nouveaux tests host Unity (alpha, LP DC/Nyquist, passe-bande).
 - [x] **[MSP 1/5] Clé de config `use_uart_msp`** — `use_uart_msp` (bool), `msp_uart_id` (uint8), `msp_baud_rate` (uint32) dans `fpv_sl_conf_t` + parser + defaults (false / UART1 / 115200). Documenté dans README.
 - [x] **[MSP 2/5] Polling MSP ARM + ENABLE trigger** — init UART dédié, polling uniforme **30 Hz** (idle et recording). Deux messages par cycle : `MSP_STATUS` (cmd 101, flag `armed` → `fpv_sl_on_record/disarm`) + `MSP_RC` (cmd 105, canal `msp_enable_channel` → `fpv_sl_on_enable/disable` + triple-trigger). `MSP_ANALOG` (cmd 110, `vbat`) lu au même tick pour détection USB-only. Mêmes 4 callbacks que GPIO → machine d'état `fpv_sl_core` inchangée. Nouvelles clés de config : `msp_enable_channel` (uint8, défaut `5`), `msp_channel_range_min` / `msp_channel_range_max` (uint16, défauts `1700` / `2100` µs — plage active, comme les sliders Betaflight), `msp_lipo_min_mv` (uint16, défaut `3000`). Condition active : `range_min <= value <= range_max`. En `ALWAY_RCD_TYPE` : si `vbat < msp_lipo_min_mv` → pas d'enregistrement (USB-only, ex. accroche GPS pré-vol) mais triple-trigger actif pour flush fichiers.
@@ -216,15 +217,15 @@ Mettre à jour cette section à chaque fin de session. Cocher / supprimer une li
 - [x] **[MSP 4/5] Valorisation MSP de la struct** — couvert par MSP 3/5 (ATTITUDE 108, RAW_GPS 106, ANALOG 110 pollés selon bitmask). Buffering RAM inutile à ces débits. `f_sync` ajouté dans `tlm_writer_write` toutes les 300 écritures (~10 s à 30 Hz) — perte max en cas de coupure secteur limitée à 10 s de télémétrie.
 - [ ] **[MSP 5/5] Support MAVLink (ArduPilot / avions)** — second parser sur le même UART (auto-détection ou clé `use_uart_mavlink`). `HEARTBEAT` → arm trigger (même machine d'état). Messages périodiques push → mêmes champs `fpv_sl_telemetry_t`. Couvre iNAV en MAVLink et ArduPilot fixed-wing.
 - [ ] **[MSP 6/5] Esclave MSP v2 — monitoring EdgeTX Lua** — le Pico répond aux requêtes MSP v2 custom forwardées par le FC via MSP passthrough (FC UART bridge → Pico). Même UART que le polling maître, détection des frames `$X` entrants entre les cycles de polling. Custom message IDs (>= `0x1000`) : `MSP2_FPV_SD_STATUS` (free/total kB + recording bool), `MSP2_FPV_CONFIG_GET` (dump `fpv_sl_conf_t`), `MSP2_FPV_CONFIG_SET` (écriture clé/valeur → `default.conf`). Script Lua EdgeTX pour afficher l'occupation SD et l'état d'enregistrement sur l'écran radio.
-- [ ] **Telemetry — items à enregistrer** (projet séparé) :
-  - [ ] Sticks CH1–CH4 (roll, pitch, yaw, throttle)
-  - [ ] Voies AUX CH5–CH8
-  - [ ] Attitude roll / pitch / yaw
-  - [ ] GPS fix type / satellites
-  - [ ] GPS latitude / longitude
-  - [ ] GPS altitude / ground speed
-  - [ ] Tension batterie (vbat)
-  - [ ] Courant / mAh consommés
-  - [ ] RSSI
+- [x] **Telemetry — items à enregistrer** — tous implémentés via bitmask `telemetry_items` (TLM_RC/ATTITUDE/GPS/ANALOG) dans `msp_get_telemetry_record` + `tlm_writer` :
+  - [x] Sticks CH1–CH4 (roll, pitch, yaw, throttle)
+  - [x] Voies AUX CH5–CH8
+  - [x] Attitude roll / pitch / yaw
+  - [x] GPS fix type / satellites
+  - [x] GPS latitude / longitude
+  - [x] GPS altitude / ground speed
+  - [x] Tension batterie (vbat)
+  - [x] Courant / mAh consommés
+  - [x] RSSI
 - [x] **Nettoyer ws2812.h** — Déclarations fantômes supprimées (`fix_*`, `toggle_*`), `COLOR_NAMES[]` et `char buffer[64]` inutilisés retirés de `ws2812.c`.
-- [ ] **Simulateur CDC — trigger ENABLE/ARM depuis PC** — `#define FPV_SL_CDC_SIM` dans `fpv_sl_loader.c` : quand USB détecté, sauter le MSC et lancer `fpv_sl_process_mode()` normalement en gardant TinyUSB+CDC actif. Appeler `tud_task()` dans `fpv_sl_core0_loop` entre les cycles SD write. Parser `tud_cdc_read()` dans Core 0 : commandes simples `e1`/`e0` → `fpv_sl_on_enable/disable()`, `r1`/`r0` → `fpv_sl_on_record/disarm()`. Utile pour tester la machine d'état sans câblage FC.
+- [x] **Simulateur CDC — trigger ENABLE/ARM depuis PC** — option CMake `FPV_SL_CDC_SIM=ON`. Quand USB détecté + CDC SIM actif : FatFS reste monté, pas de MSC, `fpv_sl_process_mode()` démarre normalement. `fpv_sl_cdc_task()` défini dans `fpv_sl_loader.c` : `tud_task()` + parser `tud_cdc_read()` (commandes 2 octets `e1`/`e0`/`r1`/`r0`). Appelé via `cdc_poll()` (helper no-op si non défini) dans `fpv_sl_core0_loop()` et toutes les boucles idle de `fpv_sl_process_mode()`. Build : `cmake -DFPV_SL_CDC_SIM=ON -S src -B src/build -G Ninja`.
