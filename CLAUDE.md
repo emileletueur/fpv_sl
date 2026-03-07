@@ -38,6 +38,12 @@ The output binary is `src/build/fpv_sl_loader.uf2` (and `.elf`).
 - Messages courts, impératifs, français ou anglais (les deux sont utilisés dans ce repo).
 - **À chaque implémentation** : mettre à jour ce fichier si l'architecture ou les conventions évoluent (section concernée + TODO), et ajouter ou mettre à jour les tests host Unity si la logique est testable sur PC.
 
+### Workflow git (multi-poste)
+
+- **Début de session** : `git pull --rebase origin main` — sur tous les postes, avant de toucher au code.
+- **Fin de session / checkpoint** : `git push origin main`.
+- Règle : push avant de quitter un poste, pull avant de coder sur un autre — évite les divergences en cours de session.
+
 ### Architecture — règle d'orchestration
 
 `fpv_sl_core` est le seul module autorisé à appeler les autres modules. Les modules bas niveau (`sdio`, `gpio`, `audio_buffer`, `status_indicator`, etc.) ne doivent **jamais** s'appeler entre eux — pas de dépendances inter-modules.
