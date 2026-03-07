@@ -155,6 +155,36 @@ When connected to a computer, the module enumerates as a **USB Mass Storage (MSC
 
 Enumeration is attempted for 3 seconds at boot. If no host is detected, the module switches directly to the recording loop.
 
+### CDC Simulator (`FPV_SL_CDC_SIM`)
+
+Build option that replaces the MSC mode with a **recording mode driven from the PC over USB CDC**. Useful for testing the state machine (ENABLE / ARM / DISARM) without any FC wiring.
+
+```bash
+# Build with CDC simulator
+cmake -DFPV_SL_CDC_SIM=ON -S src -B src/build -G Ninja
+cmake --build src/build
+```
+
+Once flashed, connect to the CDC serial port (115200 baud) and send 2-byte commands:
+
+| Command | Effect |
+|---|---|
+| `e1` | ENABLE (equivalent to switch up) |
+| `e0` | DISABLE |
+| `r1` | ARM (start recording) |
+| `r0` | DISARM (stop recording) |
+
+```bash
+# Example with picocom (Linux/macOS)
+picocom -b 115200 /dev/ttyACM0
+# then type: r1   (start)   r0   (stop)
+
+# Example with Python
+python -c "import serial,time; s=serial.Serial('/dev/ttyACM0',115200); s.write(b'r1'); time.sleep(5); s.write(b'r0')"
+```
+
+> **Note:** the SD card remains mounted (FatFS active) — WAV and TLM files are written normally. The triple-trigger delete sequence (`e1e1e1` sent within 5 s) also works in this mode.
+
 ---
 
 ## Status indicator
@@ -314,6 +344,7 @@ cmake --build src/build
 | Option | Default | Description |
 |---|---|---|
 | `FPV_SL_PICO_PROBE_DEBUG` | `OFF` | Use the onboard LED (GP25) with blink patterns instead of the WS2812 RGB LED. For debug sessions with a standard Pi Pico and a debug probe. |
+| `FPV_SL_CDC_SIM` | `OFF` | CDC simulator: skip MSC mode, run recording loop with USB+CDC active. Send 2-byte commands (`e1`/`e0`/`r1`/`r0`) to trigger ENABLE/DISABLE/ARM/DISARM. See [USB › CDC Simulator](#cdc-simulator-fpv_sl_cdc_sim). |
 
 ---
 
