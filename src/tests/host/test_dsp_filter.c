@@ -172,19 +172,24 @@ void test_lp_dc_passes_through(void) {
 }
 
 void test_lp_nyquist_attenuated(void) {
-    /* Un signal à la fréquence de Nyquist (alternance ±sample) doit être fortement
-       atténué par le LP (fc=8kHz << Nyquist=22050Hz). */
+    /* Un signal à la fréquence de Nyquist (alternance ±sample) doit être atténué
+       par le LP (fc=8kHz, fs=44100Hz).
+       Régime établi théorique : |H(Nyq)| = alpha/(2-alpha) * gain ≈ 0.29 → pic ≈ 19038.
+       On chauffe 100 échantillons pour passer le transitoire (pic initial = alpha*X ≈ 27936),
+       puis on mesure sur 100 échantillons en régime : pic doit être < 40% de l'entrée (26214). */
     lp_filter_t lp = fresh_lp();
     int32_t sign = 1;
+    for (int i = 0; i < 100; i++) {          /* chauffe */
+        process_sample(NULL, &lp, sign * RAW_SAMPLE_POS);
+        sign = -sign;
+    }
     int32_t peak = 0;
-    for (int i = 0; i < 200; i++) {
-        int32_t out = process_sample(NULL, &lp, sign * RAW_SAMPLE_POS);
-        int32_t a = iabs32(out);
+    for (int i = 0; i < 100; i++) {          /* mesure en régime établi */
+        int32_t a = iabs32(process_sample(NULL, &lp, sign * RAW_SAMPLE_POS));
         if (a > peak) peak = a;
         sign = -sign;
     }
-    /* Le passe-bas doit couper le signal à Nyquist : pic < 10 % de l'entrée décalée (65536). */
-    TEST_ASSERT_LESS_THAN_INT32(6554, peak);
+    TEST_ASSERT_LESS_THAN_INT32(26214, peak); /* < 40 % de l'entrée décalée (65536) */
 }
 
 void test_lp_zero_input_gives_zero_output(void) {
@@ -206,18 +211,23 @@ void test_bandpass_dc_rejected(void) {
 }
 
 void test_bandpass_nyquist_attenuated(void) {
-    /* Nyquist bloqué par le LP même si HP actif. */
+    /* Nyquist bloqué par le LP même si HP actif.
+       Même logique que test_lp_nyquist_attenuated : chauffe 100 échantillons,
+       mesure le pic en régime établi, seuil 40% de l'entrée. */
     hp_filter_t hp = fresh_hp();
     lp_filter_t lp = fresh_lp();
     int32_t sign = 1;
+    for (int i = 0; i < 100; i++) {          /* chauffe */
+        process_sample(&hp, &lp, sign * RAW_SAMPLE_POS);
+        sign = -sign;
+    }
     int32_t peak = 0;
-    for (int i = 0; i < 200; i++) {
-        int32_t out = process_sample(&hp, &lp, sign * RAW_SAMPLE_POS);
-        int32_t a = iabs32(out);
+    for (int i = 0; i < 100; i++) {          /* mesure en régime établi */
+        int32_t a = iabs32(process_sample(&hp, &lp, sign * RAW_SAMPLE_POS));
         if (a > peak) peak = a;
         sign = -sign;
     }
-    TEST_ASSERT_LESS_THAN_INT32(6554, peak);
+    TEST_ASSERT_LESS_THAN_INT32(26214, peak); /* < 40 % de l'entrée décalée (65536) */
 }
 
 /* ── main ────────────────────────────────────────────────────────────────── */
