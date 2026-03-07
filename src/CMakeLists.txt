@@ -68,6 +68,7 @@ add_subdirectory(config)
 add_subdirectory(drivers/ws2812)
 add_subdirectory(drivers/i2s_mic)
 add_subdirectory(modules/status_indicator)
+add_subdirectory(modules/telemetry)
 add_subdirectory(usb)
 
 

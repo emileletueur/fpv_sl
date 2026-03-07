@@ -8,6 +8,7 @@
 #include "pico/mutex.h"
 #include "pico/time.h"
 #include "status_indicator.h"
+#include "telemetry/tlm_writer.h"
 #include <math.h>
 #include <pico/multicore.h>
 #include <stdint.h>
@@ -178,12 +179,16 @@ void fpv_sl_process_mode(void) {
 
         while (1) {
             create_wav_file();
+            if (fpv_sl_conf->use_uart_msp && fpv_sl_conf->telemetry_items)
+                tlm_writer_open(fpv_sl_conf->telemetry_items, TLM_PROTOCOL_MSP, 30u);
             set_module_recording_status();
             g_recording = true;
             uint32_t start_ms = to_ms_since_boot(get_absolute_time());
             fpv_sl_core0_loop();
             uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
             LOGI("ALWAY_RCD — file closed, duration %lu ms.", duration_ms);
+            tlm_writer_close(fpv_sl_conf->file_index,
+                             fpv_sl_conf->record_folder, fpv_sl_conf->record_prefix);
             finalize_wav_file(duration_ms);
             update_disk_status();
         }
@@ -209,10 +214,14 @@ void fpv_sl_process_mode(void) {
             }
             set_module_recording_status();
             LOGI("RCD_ONLY — ARM reçu, début enregistrement.");
+            if (fpv_sl_conf->use_uart_msp && fpv_sl_conf->telemetry_items)
+                tlm_writer_open(fpv_sl_conf->telemetry_items, TLM_PROTOCOL_MSP, 30u);
             uint32_t start_ms = to_ms_since_boot(get_absolute_time());
             fpv_sl_core0_loop();
             uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
             LOGI("RCD_ONLY — DISARM reçu, durée %lu ms.", duration_ms);
+            tlm_writer_close(fpv_sl_conf->file_index,
+                             fpv_sl_conf->record_folder, fpv_sl_conf->record_prefix);
             finalize_wav_file(duration_ms);
             update_disk_status();
             create_wav_file();
@@ -256,10 +265,14 @@ void fpv_sl_process_mode(void) {
                     break;
                 set_module_recording_status();
                 LOGI("CLASSIC — ARM reçu, début enregistrement.");
+                if (fpv_sl_conf->use_uart_msp && fpv_sl_conf->telemetry_items)
+                    tlm_writer_open(fpv_sl_conf->telemetry_items, TLM_PROTOCOL_MSP, 30u);
                 uint32_t start_ms = to_ms_since_boot(get_absolute_time());
                 fpv_sl_core0_loop();
                 uint32_t duration_ms = to_ms_since_boot(get_absolute_time()) - start_ms;
                 LOGI("CLASSIC — DISARM reçu, durée %lu ms.", duration_ms);
+                tlm_writer_close(fpv_sl_conf->file_index,
+                                 fpv_sl_conf->record_folder, fpv_sl_conf->record_prefix);
                 finalize_wav_file(duration_ms);
                 update_disk_status();
                 if (g_enabled) {
@@ -311,7 +324,12 @@ void fpv_sl_core0_loop(void) {
     uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
 
     while (g_recording) {
-        msp_poll_if_due();
+        if (msp_poll_if_due() && fpv_sl_conf->telemetry_items) {
+            uint8_t rec[TLM_RECORD_MAX];
+            uint8_t rlen = msp_get_telemetry_record(fpv_sl_conf->telemetry_items, rec);
+            if (rlen > 0)
+                tlm_writer_write(rec, rlen);
+        }
         if (!is_data_ready()) {
             tight_loop_contents();
             continue;

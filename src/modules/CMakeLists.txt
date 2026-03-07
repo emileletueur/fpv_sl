@@ -11,6 +11,7 @@ target_link_libraries(fpv_sl_core PUBLIC
     audio_buffer
     msp
     sdio
+    telemetry
     i2s_mic
     status_indicator
     pico_multicore

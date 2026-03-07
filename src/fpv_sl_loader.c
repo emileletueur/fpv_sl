@@ -97,6 +97,7 @@ int main() {
                     .channel_range_min = conf->msp_channel_range_min,
                     .channel_range_max = conf->msp_channel_range_max,
                     .lipo_min_mv       = conf->msp_lipo_min_mv,
+                    .telemetry_items   = conf->telemetry_items,
                 };
                 initialize_msp_interface(&msp_conf,
                     fpv_sl_on_enable, fpv_sl_on_disable,

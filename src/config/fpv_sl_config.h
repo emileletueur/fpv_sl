@@ -28,7 +28,17 @@
 #define MSP_CHANNEL_RANGE_MIN "MSP_CHANNEL_RANGE_MIN"
 #define MSP_CHANNEL_RANGE_MAX "MSP_CHANNEL_RANGE_MAX"
 #define MSP_LIPO_MIN_MV       "MSP_LIPO_MIN_MV"
+#define TELEMETRY_ITEMS       "TELEMETRY_ITEMS"
 #endif
+
+/* Bitmask des sources de télémétrie enregistrables.
+   Valeur stockée dans fpv_sl_conf_t.telemetry_items et dans le header .tlm. */
+typedef enum {
+    TLM_RC       = (1u << 0), /* MSP_RC 105       — CH1-8 (uint16 × 8, 16 B) */
+    TLM_ATTITUDE = (1u << 1), /* MSP_ATTITUDE 108 — roll/pitch/yaw (int16 × 3, 6 B) */
+    TLM_GPS      = (1u << 2), /* MSP_RAW_GPS 106  — fix/sats/lat/lon/alt/speed (14 B) */
+    TLM_ANALOG   = (1u << 3), /* MSP_ANALOG 110   — vbat/mAh/rssi/courant (7 B) */
+} tlm_item_flags_t;
 
 typedef struct {
     char key[64];
@@ -60,6 +70,7 @@ typedef enum {
     KEY_MSP_CHANNEL_RANGE_MIN,
     KEY_MSP_CHANNEL_RANGE_MAX,
     KEY_MSP_LIPO_MIN_MV,
+    KEY_TELEMETRY_ITEMS,
 } config_key_enum_t;
 
 typedef struct {
@@ -86,6 +97,7 @@ typedef struct {
     uint16_t msp_channel_range_min; /* µs — début de la plage active du canal */
     uint16_t msp_channel_range_max; /* µs — fin de la plage active du canal */
     uint16_t msp_lipo_min_mv;       /* tension minimale LiPo en mV (ex. 3000 = 3 V/cell) */
+    uint8_t  telemetry_items;       /* bitmask tlm_item_flags_t — 0 = désactivé */
 } fpv_sl_conf_t;
 
 key_value_pair_t parse_conf_key_value(char *line);

@@ -48,6 +48,7 @@ static uint32_t g_audio_bytes_written = 0;
 #define DEFAULT_MSP_CHANNEL_RANGE_MIN     1700
 #define DEFAULT_MSP_CHANNEL_RANGE_MAX     2100
 #define DEFAULT_MSP_LIPO_MIN_MV           3000
+#define DEFAULT_TELEMETRY_ITEMS           TLM_RC  /* sticks CH1-8 uniquement */
 
 static void apply_defaults(void) {
     fpv_sl_config.record_on_boot                 = DEFAULT_RECORD_ON_BOOT;
@@ -70,6 +71,7 @@ static void apply_defaults(void) {
     fpv_sl_config.msp_channel_range_min          = DEFAULT_MSP_CHANNEL_RANGE_MIN;
     fpv_sl_config.msp_channel_range_max          = DEFAULT_MSP_CHANNEL_RANGE_MAX;
     fpv_sl_config.msp_lipo_min_mv               = DEFAULT_MSP_LIPO_MIN_MV;
+    fpv_sl_config.telemetry_items               = DEFAULT_TELEMETRY_ITEMS;
     strncpy(s_record_folder,    DEFAULT_RECORD_FOLDER,    sizeof(s_record_folder) - 1);
     strncpy(s_record_prefix, DEFAULT_RECORD_PREFIX, sizeof(s_record_prefix) - 1);
     fpv_sl_config.record_folder    = s_record_folder;
@@ -106,7 +108,8 @@ static int8_t write_default_conf(void) {
         MSP_ENABLE_CHANNEL          " %u\n"
         MSP_CHANNEL_RANGE_MIN       " %u\n"
         MSP_CHANNEL_RANGE_MAX       " %u\n"
-        MSP_LIPO_MIN_MV             " %u\n",
+        MSP_LIPO_MIN_MV             " %u\n"
+        TELEMETRY_ITEMS             " %u\n",
         DEFAULT_RECORD_ON_BOOT             ? "true" : "false",
         DEFAULT_USE_ENABLE_PIN         ? "true" : "false",
         DEFAULT_MIC_GAIN,
@@ -128,7 +131,8 @@ static int8_t write_default_conf(void) {
         DEFAULT_MSP_ENABLE_CHANNEL,
         DEFAULT_MSP_CHANNEL_RANGE_MIN,
         DEFAULT_MSP_CHANNEL_RANGE_MAX,
-        DEFAULT_MSP_LIPO_MIN_MV);
+        DEFAULT_MSP_LIPO_MIN_MV,
+        (unsigned)DEFAULT_TELEMETRY_ITEMS);
     if (len < 0 || (size_t)len >= sizeof(buf)) {
         LOGE("write_default_conf: snprintf overflow.");
         f_close(&file_p);
@@ -224,6 +228,8 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_MSP_CHANNEL_RANGE_MAX;
     if (strcmp(key, MSP_LIPO_MIN_MV) == 0)
         return KEY_MSP_LIPO_MIN_MV;
+    if (strcmp(key, TELEMETRY_ITEMS) == 0)
+        return KEY_TELEMETRY_ITEMS;
     return KEY_UNKNOWN;
 }
 
@@ -451,6 +457,9 @@ int8_t read_conf_file(void) {
             break;
         case KEY_MSP_LIPO_MIN_MV:
             fpv_sl_config.msp_lipo_min_mv = parse_uint16(conf_item.value);
+            break;
+        case KEY_TELEMETRY_ITEMS:
+            fpv_sl_config.telemetry_items = parse_uint8(conf_item.value);
             break;
         case KEY_UNKNOWN:
             break;
