@@ -375,6 +375,83 @@ cmake --build src/build
 | `FPV_SL_PICO_PROBE_DEBUG` | `OFF` | Use the onboard LED (GP25) with blink patterns instead of the WS2812 RGB LED. For debug sessions with a standard Pi Pico and a debug probe. |
 | `FPV_SL_CDC_SIM` | `OFF` | CDC simulator: skip MSC mode, run recording loop with USB+CDC active. Send 2-byte commands (`e1`/`e0`/`r1`/`r0`) to trigger ENABLE/DISABLE/ARM/DISARM. See [USB › CDC Simulator](#cdc-simulator-fpv_sl_cdc_sim). |
 
+### Step-by-step debugging (picoprobe + OpenOCD)
+
+#### Requirements
+
+- A Raspberry Pi Pico **probe** flashed with [picoprobe](https://github.com/raspberrypi/picoprobe/releases) (`picoprobe.uf2`)
+- A Raspberry Pi Pico **target** (the fpv_sl module)
+- VS Code extension: **Cortex-Debug** (`marus25.cortex-debug`)
+
+#### Wiring — probe → target
+
+| Probe (GP) | Target | Function |
+|---|---|---|
+| GND | GND | Common ground — mandatory |
+| GP2 | SWDIO | SWD data |
+| GP3 | SWDCLK | SWD clock |
+| GP8 | GP2 | FC ENABLE simulator (debug mode) |
+| GP9 | GP3 | FC RECORD simulator (debug mode) |
+
+> In `FPV_SL_PICO_PROBE_DEBUG` mode, FC ENABLE/RECORD pins are remapped to GP2/GP3 (instead of GP1/GP2 in production) to avoid conflict with the SWD wires. The GP8/GP9 simulator outputs on the probe side allow triggering ENABLE and RECORD without real FC wiring (required for the on-target test runner).
+
+#### Build
+
+```bash
+cmake -DFPV_SL_PICO_PROBE_DEBUG=ON -S src -B src/build -G Ninja
+cmake --build src/build
+# flash src/build/fpv_sl_loader.uf2 onto the target
+```
+
+#### Start OpenOCD
+
+Run in a dedicated terminal and leave it running:
+
+```bash
+# Linux / macOS
+~/.pico-sdk/openocd/0.12.0+dev/openocd \
+  -s ~/.pico-sdk/openocd/0.12.0+dev/scripts \
+  -f interface/cmsis-dap.cfg \
+  -f target/rp2040.cfg \
+  -c "adapter speed 5000"
+```
+
+```powershell
+# Windows (PowerShell)
+& "$env:USERPROFILE\.pico-sdk\openocd\0.12.0+dev\openocd.exe" `
+  -s "$env:USERPROFILE\.pico-sdk\openocd\0.12.0+dev\scripts" `
+  -f interface/cmsis-dap.cfg `
+  -f target/rp2040.cfg `
+  -c "adapter speed 5000"
+```
+
+Listens on `localhost:3333` (GDB) and `localhost:4444` (telnet).
+
+#### GDB — command line
+
+```bash
+# Linux / macOS
+~/.pico-sdk/toolchain/14_2_Rel1/bin/arm-none-eabi-gdb src/build/fpv_sl_loader.elf
+```
+
+```powershell
+# Windows
+& "$env:USERPROFILE\.pico-sdk\toolchain\14_2_Rel1\bin\arm-none-eabi-gdb.exe" src/build/fpv_sl_loader.elf
+```
+
+```
+(gdb) target remote localhost:3333
+(gdb) monitor reset init
+(gdb) break main
+(gdb) continue
+```
+
+#### VS Code — F5
+
+`.vscode/launch.json` is provided in the repo. Open the project at its root, select the **fpv_sl — OpenOCD (debug probe)** configuration and press **F5**. OpenOCD is started automatically by Cortex-Debug; execution stops at `main()`.
+
+> Paths in `launch.json` use `${env:USERPROFILE}` and point to `~/.pico-sdk/` — the standard installation path used by the Pico SDK VS Code extension.
+
 ---
 
 ## Testing

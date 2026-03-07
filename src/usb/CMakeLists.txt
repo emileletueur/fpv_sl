@@ -2,6 +2,7 @@ add_library(usb STATIC
     usb_descriptor.c
     msc_disk.c
     cdc/debug_cdc.c
+    cdc_sim.c
 )
 
 target_include_directories(usb PUBLIC

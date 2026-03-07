@@ -11,6 +11,7 @@
 #include "pico/multicore.h"
 #include "status_indicator.h"
 #include "tusb.h"
+#include "usb/cdc_sim.h"
 #include "usb/msc_disk.h"
 #include "usb/tusb_config.h"
 
@@ -35,31 +36,24 @@ int main() {
 
     board_init_after_tusb();
 
-    // Init SD card and FatFS before USB — blocking ops must not happen after tusb_init()
-    // so that tud_task() can run as soon as USB starts.
-    while (tud_msc_request_mount()) {
-        ;
-    }
+    // Init SD card (SPI + disk_initialize) — opération bloquante, avant tusb_init().
+    tud_msc_request_mount();
 
-    // Load config and recover any unfinalized recording before USB starts.
-    // Recovered files will be visible via MSC since FatFS is unmounted before MSC takes over.
+    // Chargement config + récupération enregistrement non finalisé avant USB.
     if (read_conf_file() == 0) {
         recover_unfinalized_recording();
     }
     const fpv_sl_conf_t *conf = get_conf();
 
-    // Init status LED before USB — sleep_ms here does not block USB enumeration.
+    // Init LED et démarrage USB.
     status_indicator_init();
     set_module_powered_status();
-    sleep_ms(500);
 
-    // Start USB — tud_task() must be called as soon as possible after this.
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
 
-    // wait for USB enumeration with timeout
+    // Attente d'énumération USB (3 s).
     bool is_device_enumerated = false;
     uint32_t start_time = to_ms_since_boot(get_absolute_time());
-
     while (to_ms_since_boot(get_absolute_time()) - start_time < USB_ENUM_TIMEOUT_MS) {
         tud_task();
         if (tud_mounted()) {
@@ -68,80 +62,62 @@ int main() {
         }
     }
 
-    if (is_device_enumerated) {
 #ifndef FPV_SL_CDC_SIM
-        LOGI("USB init OK.");
-        // Unmount FatFS before MSC takes over SD card sector access.
-        f_mount(NULL, "0:", 0);
+    // Mode MSC : expose la SD comme stockage USB, boucle infinie.
+    if (is_device_enumerated) {
+        LOGI("USB MSC mode.");
+        f_mount(NULL, "0:", 0); // démonte FatFS — MSC prend le contrôle des secteurs SD.
         set_usb_msc_status();
         while (1) {
             tud_task();
             process_msc_activity();
         }
-#else
-        LOGI("USB CDC SIM — mode enregistrement avec CDC actif.");
-        /* FatFS reste monté. Core 0 appellera fpv_sl_cdc_task() entre les blocs. */
+        /* unreachable */
+    }
 #endif
+
+    // Mode enregistrement — atteint si : pas d'USB, timeout, ou FPV_SL_CDC_SIM actif.
+    if (is_device_enumerated) {
+        LOGI("USB CDC SIM — mode enregistrement avec CDC actif.");
+        /* FatFS reste monté. cdc_poll() appellera fpv_sl_cdc_task() entre les blocs. */
     } else {
-        LOGI("USB timeout — recording mode.");
+        LOGI("USB timeout — mode enregistrement.");
         tud_disconnect();
         sleep_ms(100);
+    }
 
-        if (conf->conf_is_loaded) {
-            // Initialize I2S MEMS mic
-            i2s_mic_t i2s_mic_conf = {
-                .sample_rate = conf->sample_rate, .is_mono = conf->mono_record, .buffer_size = 2048};
-            init_i2s_mic(&i2s_mic_conf);
+    if (conf->conf_is_loaded) {
+        // Initialise le micro I2S.
+        i2s_mic_t i2s_mic_conf = {
+            .sample_rate = conf->sample_rate, .is_mono = conf->mono_record, .buffer_size = conf->buffer_size};
+        init_i2s_mic(&i2s_mic_conf);
 
-            // Initialize Flight Controller interface (GPIO ou MSP selon config)
-            if (conf->use_uart_msp) {
-                msp_conf_t msp_conf = {
-                    .uart_id           = conf->msp_uart_id,
-                    .baud_rate         = conf->msp_baud_rate,
-                    .enable_channel    = conf->msp_enable_channel,
-                    .channel_range_min = conf->msp_channel_range_min,
-                    .channel_range_max = conf->msp_channel_range_max,
-                    .lipo_min_mv       = conf->msp_lipo_min_mv,
-                    .telemetry_items   = conf->telemetry_items,
-                };
-                initialize_msp_interface(&msp_conf,
-                    fpv_sl_on_enable, fpv_sl_on_disable,
-                    fpv_sl_on_record, fpv_sl_on_disarm);
-            } else {
-                initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_disable,
-                    fpv_sl_on_record, fpv_sl_on_disarm);
-            }
-
-            // Determine execution mode
-            get_mode_from_config(conf);
-
-            // process according initialized mode
-            fpv_sl_process_mode();
+        // Initialise l'interface FC (GPIO ou MSP selon config).
+        if (conf->use_uart_msp) {
+            msp_conf_t msp_conf = {
+                .uart_id           = conf->msp_uart_id,
+                .baud_rate         = conf->msp_baud_rate,
+                .enable_channel    = conf->msp_enable_channel,
+                .channel_range_min = conf->msp_channel_range_min,
+                .channel_range_max = conf->msp_channel_range_max,
+                .lipo_min_mv       = conf->msp_lipo_min_mv,
+                .telemetry_items   = conf->telemetry_items,
+            };
+            initialize_msp_interface(&msp_conf,
+                fpv_sl_on_enable, fpv_sl_on_disable,
+                fpv_sl_on_record, fpv_sl_on_disarm);
         } else {
-            LOGE("Config not loaded — cannot start recording.");
+            initialize_gpio_interface(fpv_sl_on_enable, fpv_sl_on_disable,
+                fpv_sl_on_record, fpv_sl_on_disarm);
         }
 
-        while (1) {
-            tight_loop_contents();
-        }
+        get_mode_from_config(conf);
+        fpv_sl_process_mode();
+    } else {
+        LOGE("Config not loaded — cannot start recording.");
     }
-}
 
-#ifdef FPV_SL_CDC_SIM
-/* Appelé par fpv_sl_core.c via cdc_poll() à chaque bloc audio et dans les boucles idle.
-   Commandes CDC (2 octets) : e1/e0 → ENABLE/DISABLE, r1/r0 → ARM/DISARM. */
-void fpv_sl_cdc_task(void) {
-    tud_task();
-    if (!tud_cdc_available())
-        return;
-    char buf[8];
-    uint32_t n = tud_cdc_read(buf, sizeof(buf));
-    for (uint32_t i = 0; i + 1 < n; i++) {
-        char cmd = buf[i], val = buf[i + 1];
-        if      (cmd == 'e' && val == '1') { fpv_sl_on_enable();  i++; }
-        else if (cmd == 'e' && val == '0') { fpv_sl_on_disable(); i++; }
-        else if (cmd == 'r' && val == '1') { fpv_sl_on_record();  i++; }
-        else if (cmd == 'r' && val == '0') { fpv_sl_on_disarm();  i++; }
+    while (1) {
+        tight_loop_contents();
     }
 }
-#endif
