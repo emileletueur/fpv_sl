@@ -51,7 +51,7 @@ INMP441 ──I2S──► DMA (ping-pong) ──► Ring buffer (8 × 256 sampl
                           ┌─────────────────┴──────────────────┐
                           │ Core 0                             │ Core 1
                           │ - Picks a ready block              │ - Receives block via FIFO
-                          │ - Sends ptr to Core 1              │ - Applies high-pass filter
+                          │ - Sends ptr to Core 1              │ - Applies DSP chain
                           │ - Writes filtered block to SD      │ - Sends ptr back to Core 0
                           └────────────────────────────────────┘
                                             │
@@ -61,8 +61,30 @@ INMP441 ──I2S──► DMA (ping-pong) ──► Ring buffer (8 × 256 sampl
 - **Sample rates**: 22 080 Hz or 44 180 Hz (configurable)
 - **Channels**: mono or stereo (configurable)
 - **Bit depth**: 32-bit PCM (INMP441 outputs 24-bit I2S data stored as int32)
-- **DSP**: 1st-order IIR high-pass filter (α ≈ 0.959, cutoff ~300 Hz) — removes low-frequency motor noise
 - **Buffer**: ring buffer of 8 blocks × 256 samples × 4 bytes = ~8 kB, providing ~128 ms of margin at 16 kHz
+
+### DSP chain (Core 1, per sample)
+
+```
+raw sample (32-bit)
+    │
+    ▼
+  >> 8   (24-bit alignment)
+    │
+    ▼
+[High-pass IIR]  ──  y[n] = α·(y[n-1] + x[n] - x[n-1])     α = fs / (fs + 2π·fc_hp)
+    │                enabled by use_high_pass_filter, fc set by high_pass_cutoff_freq
+    ▼
+[Low-pass IIR]   ──  y[n] = α·x[n] + (1-α)·y[n-1]           α = 2π·fc_lp / (fs + 2π·fc_lp)
+    │                enabled by use_low_pass_filter, fc set by low_pass_cutoff_freq
+    ▼
+  × gain          ──  gain = mic_gain / 100   (e.g. 80 → 0.8×, 100 → 1.0×)
+    │
+    ▼
+ int32_t output
+```
+
+Both filters are 1st-order IIR. Each can be independently enabled or disabled. When both are active they form a **band-pass filter** (default passband: ~200 Hz – 8 kHz), which removes low-frequency motor rumble below the HP cutoff and high-frequency noise above the LP cutoff.
 
 ---
 
@@ -175,9 +197,11 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 |---|---|---|
 | `use_enable_pin` | `true` / `false` | Enable the FC ENABLE pin trigger |
 | `record_on_boot` | `true` / `false` | Record immediately on power-on |
-| `mic_gain` | `10` – `110` | Microphone gain factor (100 = unity) |
-| `use_high_pass_filter` | `true` / `false` | Enable the digital high-pass filter |
-| `high_pass_cutoff_freq` | `50` – `500` | High-pass filter cutoff frequency (Hz) |
+| `mic_gain` | `0` – `200` | Output gain in percent — `80` = 0.8×, `100` = 1.0× (unity), `200` = 2.0×. Default `80`. |
+| `use_high_pass_filter` | `true` / `false` | Enable the high-pass filter (removes motor rumble below the cutoff). Default `true`. |
+| `high_pass_cutoff_freq` | `1` – `255` | High-pass cutoff frequency in Hz. Default `200`. |
+| `use_low_pass_filter` | `true` / `false` | Enable the low-pass filter (removes high-frequency noise above the cutoff). Default `true`. |
+| `low_pass_cutoff_freq` | `1` – `22000` | Low-pass cutoff frequency in Hz. Default `8000`. |
 | `sample_rate` | `22080` / `44180` | I2S sample rate (Hz) |
 | `mono_record` | `true` / `false` | Record in mono (single channel) |
 | `file_index` | `1` – `...` | Auto-incremented index for unique file names |

@@ -7,12 +7,21 @@
 #include "pico/mutex.h"
 #include "pico/time.h"
 #include "status_indicator.h"
+#include <math.h>
 #include <pico/multicore.h>
 #include <stdint.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265f
+#endif
+
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
-hp_filter_t filter_L = {0.959f, 0, 0}; // Alpha pour ~300Hz à 44.1kHz
-hp_filter_t filter_R = {0.959f, 0, 0};
+
+static hp_filter_t filter_L    = {0};
+static hp_filter_t filter_R    = {0};
+static lp_filter_t filter_L_lp = {0};
+static lp_filter_t filter_R_lp = {0};
+static float       g_gain      = 0.8f; /* défaut = 80 % ; écrasé par get_mode_from_config() */
 static execution_condition_t execution_condition;
 
 /* Nombre de blocs audio écrits entre deux f_sync().
@@ -96,18 +105,41 @@ static void update_disk_status(void) {
     }
 }
 
+float compute_hp_alpha(uint16_t cutoff_hz, uint16_t sample_rate) {
+    float wc = 2.0f * M_PI * (float)cutoff_hz;
+    float fs = (float)sample_rate;
+    return fs / (fs + wc);
+}
+
+float compute_lp_alpha(uint16_t cutoff_hz, uint16_t sample_rate) {
+    float wc = 2.0f * M_PI * (float)cutoff_hz;
+    float fs = (float)sample_rate;
+    return wc / (fs + wc);
+}
+
 uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
     fpv_sl_conf = fpv_sl_config;
-    if (fpv_sl_conf->conf_is_loaded) {
-        if (fpv_sl_conf->record_on_boot)
-            execution_condition = ALWAY_RCD_TYPE;
-        else if (!fpv_sl_conf->record_on_boot && !fpv_sl_conf->use_enable_pin)
-            execution_condition = RCD_ONLY_TYPE;
-        else if (!fpv_sl_conf->record_on_boot && fpv_sl_conf->use_enable_pin)
-            execution_condition = CLASSIC_TYPE;
-        return 0;
-    } else
+    if (!fpv_sl_conf->conf_is_loaded)
         return -1;
+
+    /* Initialise les coefficients des filtres depuis la config. */
+    filter_L.alpha    = compute_hp_alpha(fpv_sl_conf->high_pass_cutoff_freq, fpv_sl_conf->sample_rate);
+    filter_R.alpha    = filter_L.alpha;
+    filter_L_lp.alpha = compute_lp_alpha(fpv_sl_conf->low_pass_cutoff_freq,  fpv_sl_conf->sample_rate);
+    filter_R_lp.alpha = filter_L_lp.alpha;
+    g_gain = (float)fpv_sl_conf->mic_gain / 100.0f;
+    LOGI("HP alpha=%.4f (fc=%uHz), LP alpha=%.4f (fc=%uHz) at %uHz, gain=%.2f (%u%%).",
+         filter_L.alpha,    fpv_sl_conf->high_pass_cutoff_freq,
+         filter_L_lp.alpha, fpv_sl_conf->low_pass_cutoff_freq,
+         fpv_sl_conf->sample_rate, g_gain, fpv_sl_conf->mic_gain);
+
+    if (fpv_sl_conf->record_on_boot)
+        execution_condition = ALWAY_RCD_TYPE;
+    else if (!fpv_sl_conf->use_enable_pin)
+        execution_condition = RCD_ONLY_TYPE;
+    else
+        execution_condition = CLASSIC_TYPE;
+    return 0;
 }
 
 void fpv_sl_process_mode(void) {
@@ -216,23 +248,37 @@ void fpv_sl_process_mode(void) {
     }
 }
 
-int32_t process_sample(hp_filter_t *f, int32_t sample) {
-    // 1. Décalage pour alignement LSB (comme discuté)
-    int32_t x = sample >> 8;
+int32_t process_sample(hp_filter_t *hp, lp_filter_t *lp, int32_t sample) {
+    /* 1. Alignement LSB : INMP441 envoie 24 bits dans un mot 32 bits MSB-aligné. */
+    float x = (float)(sample >> 8);
 
-    // 2. Filtre Passe-Haut
-    float x_f = (float) x;
-    float y_f = f->alpha * (f->last_y + x_f - f->last_x);
-    f->last_x = x_f;
-    f->last_y = y_f;
+    /* 2. Filtre passe-haut IIR 1er ordre (bypass si hp == NULL).
+          y[n] = alpha * (y[n-1] + x[n] - x[n-1]) */
+    float y;
+    if (hp) {
+        y = hp->alpha * (hp->last_y + x - hp->last_x);
+        hp->last_x = x;
+        hp->last_y = y;
+    } else {
+        y = x;
+    }
 
-    // 3. Réduction de gain de 20% (on garde 80%)
-    return (int32_t) (y_f * 0.8f);
+    /* 3. Filtre passe-bas IIR 1er ordre (bypass si lp == NULL).
+          y[n] = alpha * x[n] + (1 - alpha) * y[n-1] */
+    if (lp) {
+        float y_lp = lp->alpha * y + (1.0f - lp->alpha) * lp->last_y;
+        lp->last_y = y_lp;
+        y = y_lp;
+    }
+
+    /* 4. Gain configurable (MIC_GAIN %). */
+    return (int32_t)(y * g_gain);
 }
 
 void fpv_sl_core0_loop(void) {
-    filter_L.last_x = 0; filter_L.last_y = 0;
-    filter_R.last_x = 0; filter_R.last_y = 0;
+    filter_L.last_x = 0;    filter_L.last_y = 0;
+    filter_R.last_x = 0;    filter_R.last_y = 0;
+    filter_L_lp.last_y = 0; filter_R_lp.last_y = 0;
 
     uint32_t blocks_since_sync = 0;
     uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
@@ -267,19 +313,22 @@ void fpv_sl_core1_loop(void) {
         uint32_t addr = multicore_fifo_pop_blocking();
         int32_t *samples = (int32_t *) addr;
 
+        hp_filter_t *hp_l = fpv_sl_conf->use_high_pass_filter ? &filter_L    : NULL;
+        hp_filter_t *hp_r = fpv_sl_conf->use_high_pass_filter ? &filter_R    : NULL;
+        lp_filter_t *lp_l = fpv_sl_conf->use_low_pass_filter  ? &filter_L_lp : NULL;
+        lp_filter_t *lp_r = fpv_sl_conf->use_low_pass_filter  ? &filter_R_lp : NULL;
+
         if (fpv_sl_conf->mono_record) {
-            // COMPACTION : On ne garde que le canal GAUCHE (indices pairs)
+            /* COMPACTION : canal GAUCHE (indices pairs) uniquement. */
             int j = 0;
             for (int i = 0; i < fpv_sl_conf->buffer_size; i += 2) {
-                samples[j] = process_sample(&filter_L, samples[i]);
-                j++;
+                samples[j++] = process_sample(hp_l, lp_l, samples[i]);
             }
-            // Ici, les BUFFER_SIZE/2 premiers slots du buffer sont remplis
         } else {
-            // MODE STEREO : canal gauche (INMP441 L/R=GND) + canal droit (INMP441 L/R=VCC)
+            /* STEREO : canal gauche (L/R=GND) + canal droit (L/R=VCC). */
             for (int i = 0; i < fpv_sl_conf->buffer_size; i += 2) {
-                samples[i]     = process_sample(&filter_L, samples[i]);
-                samples[i + 1] = process_sample(&filter_R, samples[i + 1]);
+                samples[i]     = process_sample(hp_l, lp_l, samples[i]);
+                samples[i + 1] = process_sample(hp_r, lp_r, samples[i + 1]);
             }
         }
 

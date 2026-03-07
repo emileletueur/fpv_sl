@@ -88,7 +88,7 @@ target_include_directories(test_dsp_filter PRIVATE
                                      # pico/multicore.h, ff.h
     ${unity_SOURCE_DIR}/src
 )
-target_link_libraries(test_dsp_filter PRIVATE unity)
+target_link_libraries(test_dsp_filter PRIVATE unity m)
 add_test(NAME dsp_filter COMMAND test_dsp_filter)
 
 # ── test_recording_mode ───────────────────────────────────────────────────
@@ -111,7 +111,7 @@ target_include_directories(test_recording_mode PRIVATE
     ${STUBS}
     ${unity_SOURCE_DIR}/src
 )
-target_link_libraries(test_recording_mode PRIVATE unity)
+target_link_libraries(test_recording_mode PRIVATE unity m)
 add_test(NAME recording_mode COMMAND test_recording_mode)
 
 # ── test_disk_usage ───────────────────────────────────────────────────────

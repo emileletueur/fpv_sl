@@ -11,6 +11,8 @@
 #define MIC_GAIN "MIC_GAIN"
 #define USE_HIGH_PASS_FILTER "USE_HIGH_PASS_FILTER"
 #define HIGH_PASS_CUTOFF_FREQ "HIGH_PASS_CUTOFF_FREQ"
+#define USE_LOW_PASS_FILTER "USE_LOW_PASS_FILTER"
+#define LOW_PASS_CUTOFF_FREQ "LOW_PASS_CUTOFF_FREQ"
 #define SAMPLE_RATE "SAMPLE_RATE"
 #define BUFFER_SIZE "BUFFER_SIZE"
 #define MONO_RECORD "MONO_RECORD"
@@ -37,6 +39,8 @@ typedef enum {
     KEY_MIC_GAIN,
     KEY_USE_HIGH_PASS_FILTER,
     KEY_HIGH_PASS_CUTOFF_FREQ,
+    KEY_USE_LOW_PASS_FILTER,
+    KEY_LOW_PASS_CUTOFF_FREQ,
     KEY_SAMPLE_RATE,
     KEY_BUFFER_SIZE,
     KEY_MONO_RECORD,
@@ -54,9 +58,11 @@ typedef struct {
     bool conf_is_loaded;
     bool use_enable_pin;           // record only be triggerd by arm/desarm pin
     bool record_on_boot;               // record as soon as module is powered
-    uint8_t mic_gain;              // use to tune mic gain
-    bool use_high_pass_filter;     // use the low pass filter
-    uint8_t high_pass_cutoff_freq; // the cutoff frequency of numeric low pass filter
+    uint8_t mic_gain;              // gain en pourcentage : 80 = 0.8×, 100 = 1.0×, 200 = 2.0×
+    bool use_high_pass_filter;      // enable the high-pass filter
+    uint8_t high_pass_cutoff_freq;  // HP cutoff frequency in Hz (≤ 255)
+    bool use_low_pass_filter;       // enable the low-pass filter
+    uint16_t low_pass_cutoff_freq;  // LP cutoff frequency in Hz
     uint16_t sample_rate;          // i2s rcd sample rate
     uint16_t buffer_size;          // i2s buffer size
     bool mono_record;          // i2s rcd sample rate

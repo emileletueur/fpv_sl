@@ -10,16 +10,34 @@ typedef enum {
 } execution_condition_t;
 
 typedef struct {
-    float alpha;
-    float last_x;
-    float last_y;
+    float alpha;   /* coefficient calculé depuis fc et fs */
+    float last_x;  /* x[n-1] */
+    float last_y;  /* y[n-1] */
 } hp_filter_t;
+
+typedef struct {
+    float alpha;   /* coefficient calculé depuis fc et fs */
+    float last_y;  /* y[n-1] */
+} lp_filter_t;
+
+/* Calcule l'alpha d'un filtre passe-haut IIR 1er ordre.
+   alpha_hp = fs / (fs + 2π·fc) */
+float compute_hp_alpha(uint16_t cutoff_hz, uint16_t sample_rate);
+
+/* Calcule l'alpha d'un filtre passe-bas IIR 1er ordre.
+   alpha_lp = 2π·fc / (fs + 2π·fc) */
+float compute_lp_alpha(uint16_t cutoff_hz, uint16_t sample_rate);
+
+/* Applique la chaîne de filtrage sur un échantillon brut INMP441 (32 bits).
+   hp peut être NULL pour bypasser le filtre passe-haut.
+   lp peut être NULL pour bypasser le filtre passe-bas.
+   Le décalage d'alignement (>> 8) et le gain (0.8) sont toujours appliqués. */
+int32_t process_sample(hp_filter_t *hp, lp_filter_t *lp, int32_t sample);
 
 uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_conf);
 void fpv_sl_process_mode(void);
 void fpv_sl_core0_loop(void);
 void fpv_sl_core1_loop(void);
-int32_t apply_filter_and_gain(hp_filter_t *f, int32_t sample);
 
 /* Triple-trigger ENABLE : vérifie / efface le flag de suppression des fichiers audio.
    fpv_sl_reset_enable_pulse_counter() est destiné aux tests et à la réinitialisation. */

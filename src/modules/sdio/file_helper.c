@@ -28,9 +28,11 @@ static uint32_t g_audio_bytes_written = 0;
 
 #define DEFAULT_RECORD_ON_BOOT                true
 #define DEFAULT_USE_ENABLE_PIN            false
-#define DEFAULT_MIC_GAIN                  1
+#define DEFAULT_MIC_GAIN                  80  /* 80 % = facteur 0.8× */
 #define DEFAULT_USE_HIGH_PASS_FILTER      true
 #define DEFAULT_HIGH_PASS_CUTOFF_FREQ     200
+#define DEFAULT_USE_LOW_PASS_FILTER       true
+#define DEFAULT_LOW_PASS_CUTOFF_FREQ      8000
 #define DEFAULT_SAMPLE_RATE               44100
 #define DEFAULT_BUFFER_SIZE               256
 #define DEFAULT_MONO_RECORD               true
@@ -49,6 +51,8 @@ static void apply_defaults(void) {
     fpv_sl_config.mic_gain                   = DEFAULT_MIC_GAIN;
     fpv_sl_config.use_high_pass_filter       = DEFAULT_USE_HIGH_PASS_FILTER;
     fpv_sl_config.high_pass_cutoff_freq      = DEFAULT_HIGH_PASS_CUTOFF_FREQ;
+    fpv_sl_config.use_low_pass_filter        = DEFAULT_USE_LOW_PASS_FILTER;
+    fpv_sl_config.low_pass_cutoff_freq       = DEFAULT_LOW_PASS_CUTOFF_FREQ;
     fpv_sl_config.sample_rate                = DEFAULT_SAMPLE_RATE;
     fpv_sl_config.buffer_size                = DEFAULT_BUFFER_SIZE;
     fpv_sl_config.mono_record                = DEFAULT_MONO_RECORD;
@@ -78,6 +82,8 @@ static int8_t write_default_conf(void) {
         MIC_GAIN                  " %u\n"
         USE_HIGH_PASS_FILTER      " %s\n"
         HIGH_PASS_CUTOFF_FREQ     " %u\n"
+        USE_LOW_PASS_FILTER       " %s\n"
+        LOW_PASS_CUTOFF_FREQ      " %u\n"
         SAMPLE_RATE               " %u\n"
         BUFFER_SIZE               " %u\n"
         MONO_RECORD               " %s\n"
@@ -94,6 +100,8 @@ static int8_t write_default_conf(void) {
         DEFAULT_MIC_GAIN,
         DEFAULT_USE_HIGH_PASS_FILTER   ? "true" : "false",
         DEFAULT_HIGH_PASS_CUTOFF_FREQ,
+        DEFAULT_USE_LOW_PASS_FILTER    ? "true" : "false",
+        DEFAULT_LOW_PASS_CUTOFF_FREQ,
         DEFAULT_SAMPLE_RATE,
         DEFAULT_BUFFER_SIZE,
         DEFAULT_MONO_RECORD            ? "true" : "false",
@@ -166,6 +174,10 @@ config_key_enum_t string_to_key_enum(const char *key) {
         return KEY_USE_HIGH_PASS_FILTER;
     if (strcmp(key, HIGH_PASS_CUTOFF_FREQ) == 0)
         return KEY_HIGH_PASS_CUTOFF_FREQ;
+    if (strcmp(key, USE_LOW_PASS_FILTER) == 0)
+        return KEY_USE_LOW_PASS_FILTER;
+    if (strcmp(key, LOW_PASS_CUTOFF_FREQ) == 0)
+        return KEY_LOW_PASS_CUTOFF_FREQ;
     if (strcmp(key, SAMPLE_RATE) == 0)
         return KEY_SAMPLE_RATE;
     if (strcmp(key, BUFFER_SIZE) == 0)
@@ -362,6 +374,12 @@ int8_t read_conf_file(void) {
             break;
         case KEY_HIGH_PASS_CUTOFF_FREQ:
             fpv_sl_config.high_pass_cutoff_freq = parse_uint8(conf_item.value);
+            break;
+        case KEY_USE_LOW_PASS_FILTER:
+            fpv_sl_config.use_low_pass_filter = parse_bool(conf_item.value);
+            break;
+        case KEY_LOW_PASS_CUTOFF_FREQ:
+            fpv_sl_config.low_pass_cutoff_freq = parse_uint16(conf_item.value);
             break;
         case KEY_SAMPLE_RATE:
             fpv_sl_config.sample_rate = parse_uint16(conf_item.value);
