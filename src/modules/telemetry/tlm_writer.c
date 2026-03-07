@@ -9,8 +9,12 @@
 #define TLM_TMP_PATH   "0:/t_mic_rcd.tlm"
 #define TLM_FORMAT_VER 1u
 
-static FIL   s_file;
-static bool  s_open = false;
+/* f_sync toutes les TLM_SYNC_PERIOD écritures (~10 s à 30 Hz). */
+#define TLM_SYNC_PERIOD 300u
+
+static FIL      s_file;
+static bool     s_open         = false;
+static uint16_t s_records_since_sync = 0;
 
 int8_t tlm_writer_open(uint8_t items, uint8_t protocol, uint8_t sample_rate_hz) {
     if (s_open) {
@@ -41,6 +45,7 @@ int8_t tlm_writer_open(uint8_t items, uint8_t protocol, uint8_t sample_rate_hz) 
     }
 
     s_open = true;
+    s_records_since_sync = 0;
     LOGI("TLM writer open (items=0x%02x, proto=%u, rate=%uHz).", items, protocol, sample_rate_hz);
     return 0;
 }
@@ -54,6 +59,13 @@ int8_t tlm_writer_write(const uint8_t *buf, uint8_t len) {
     if (fr != FR_OK || bw != len) {
         LOGE("tlm_writer_write: f_write failed (%d).", fr);
         return -1;
+    }
+
+    if (++s_records_since_sync >= TLM_SYNC_PERIOD) {
+        fr = f_sync(&s_file);
+        if (fr != FR_OK)
+            LOGW("tlm_writer_write: f_sync failed (%d).", fr);
+        s_records_since_sync = 0;
     }
     return 0;
 }
