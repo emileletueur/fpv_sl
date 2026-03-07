@@ -395,17 +395,33 @@ ctest --test-dir src/tests/build_host -V
 ```
 fpv_sl/
 └── src/
-    ├── config/             # Config file parser (default.conf)
+    ├── config/                  # default.conf parser, fpv_sl_conf_t definition
     ├── drivers/
-    │   ├── i2s_mic/        # I2S DMA driver for INMP441
-    │   ├── ws2812/         # WS2812 RGB LED driver (PIO)
-    │   └── no-OS-FatFS-*/  # FatFS SPI SD library (third-party)
+    │   ├── i2s_mic/             # I2S DMA driver for INMP441 (ping-pong DMA, overrun detection)
+    │   ├── msp/                 # MSP v2 protocol driver (UART, state-machine parser, CRC8)
+    │   ├── ws2812/              # WS2812 RGB LED driver (PIO)
+    │   └── no-OS-FatFS-*/       # FatFS over SPI SD (third-party submodule)
     ├── modules/
-    │   ├── audio_buffer/   # Lock-free ring buffer (dual-core pipeline)
-    │   ├── gpio/           # FC GPIO interface (ENABLE / RECORD pins)
-    │   ├── sdio/           # SD file helpers (WAV creation, config read)
-    │   └── status_indicator/ # LED abstraction (RGB or onboard)
-    ├── usb/                # TinyUSB MSC + CDC descriptors
-    ├── utils/              # Logging, string cast helpers
-    └── fpv_sl_loader.c     # Main entry point
+    │   ├── audio_buffer/        # Lock-free ring buffer (8 × 256 samples, dual-core pipeline)
+    │   ├── gpio/                # FC GPIO interface (ENABLE / RECORD IRQ callbacks)
+    │   ├── msp/                 # MSP business logic — 30 Hz polling, ARM/ENABLE detection, telemetry packing
+    │   ├── sdio/                # FatFS helpers — WAV lifecycle, config read/write, disk usage
+    │   ├── status_indicator/    # LED abstraction (WS2812 RGB or onboard GP25 blink patterns)
+    │   ├── telemetry/           # .tlm file writer (dynamic binary format, f_sync checkpointing)
+    │   ├── fpv_sl_core.c/h      # Dual-core recording loop, DSP filter chain, mode state machine
+    │   └── fpv_sl_core_board_pin.h  # Default GPIO pin assignments (overridable)
+    ├── tests/
+    │   ├── host/                # Unity host tests (PC, no hardware)
+    │   │   ├── test_cast_from_str.c
+    │   │   ├── test_audio_buffer.c
+    │   │   ├── test_config_parser.c
+    │   │   ├── test_disk_usage.c
+    │   │   ├── test_dsp_filter.c
+    │   │   ├── test_recording_mode.c
+    │   │   └── test_tlm_packing.c
+    │   ├── target/              # On-target test runner firmware (Pico, USB CDC report)
+    │   └── stubs/               # Pico SDK stubs for host compilation (ff.h, pico/, pico_stubs.c)
+    ├── usb/                     # TinyUSB MSC + CDC descriptors and disk backend
+    ├── utils/                   # debug_log.h (LOGI/LOGW/LOGE/LOGD), cast_from_str
+    └── fpv_sl_loader.c          # main() — boot, USB enumeration, mode dispatch, CDC SIM
 ```
