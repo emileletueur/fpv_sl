@@ -27,6 +27,23 @@ typedef struct __attribute__((packed)) {
     uint8_t sample_rate_hz;  /* fréquence de polling en Hz (ex. 30)         */
 } tlm_file_header_t;
 
+/* Retourne la taille en bytes d'un record pour le bitmask donné.
+   Sert de spec du format : toute modification ici doit être répercutée dans
+   le README et le parser PC.
+     timestamp_ms  : 4 B (toujours présent)
+     TLM_RC        : 16 B (uint16 × 8 canaux)
+     TLM_ATTITUDE  : 6 B  (int16 roll/pitch/yaw)
+     TLM_GPS       : 14 B (fix,sats,lat,lon,alt,speed)
+     TLM_ANALOG    : 7 B  (vbat_mv,mah,rssi,current_ca) */
+static inline uint8_t tlm_record_size(uint8_t items) {
+    uint8_t sz = 4u;
+    if (items & TLM_RC)       sz += 16u;
+    if (items & TLM_ATTITUDE) sz += 6u;
+    if (items & TLM_GPS)      sz += 14u;
+    if (items & TLM_ANALOG)   sz += 7u;
+    return sz;
+}
+
 /* Ouvre (ou crée) le fichier télémétrie temporaire pour un enregistrement.
    Doit être appelé juste avant fpv_sl_core0_loop().
    Retourne 0 si OK, -1 si erreur FatFS. */

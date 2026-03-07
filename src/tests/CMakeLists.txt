@@ -133,3 +133,16 @@ target_include_directories(test_disk_usage PRIVATE
 )
 target_link_libraries(test_disk_usage PRIVATE unity)
 add_test(NAME disk_usage COMMAND test_disk_usage)
+
+# ── test_tlm_packing ──────────────────────────────────────────────────────
+# Teste tlm_record_size() et sizeof(tlm_file_header_t) — logique pure, pas de FatFS.
+add_executable(test_tlm_packing
+    host/test_tlm_packing.c
+)
+target_include_directories(test_tlm_packing PRIVATE
+    ${SRC}/modules/telemetry
+    ${SRC}/config
+    ${unity_SOURCE_DIR}/src
+)
+target_link_libraries(test_tlm_packing PRIVATE unity)
+add_test(NAME tlm_packing COMMAND test_tlm_packing)
