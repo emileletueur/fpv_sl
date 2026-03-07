@@ -216,6 +216,66 @@ Single LED with blink patterns (active with `FPV_SL_PICO_PROBE_DEBUG=ON`):
 | `msp_channel_range_min` | `1000` – `2000` | Lower bound (µs) of the active range for the ENABLE channel, like the Betaflight mode slider. Default `1700`. |
 | `msp_channel_range_max` | `1000` – `2000` | Upper bound (µs) of the active range for the ENABLE channel. Default `2100`. |
 | `msp_lipo_min_mv` | mV (default `3000`) | Minimum battery voltage (mV) to consider a LiPo connected. Below this threshold (USB-only power), `RECORD_ON_BOOT` mode holds recording until LiPo is detected, while still allowing triple-trigger delete. |
+| `telemetry_items` | bitmask (default `1`) | MSP data sources to record alongside audio. Sum the values of the desired sources: `1`=RC sticks, `2`=attitude, `4`=GPS, `8`=analog. Examples: `1`=sticks only, `3`=sticks+attitude, `15`=all. `0` disables telemetry. Only active when `use_uart_msp = true`. |
+
+---
+
+## Telemetry (.tlm files)
+
+When `use_uart_msp = true` and `telemetry_items > 0`, the module records a `.tlm` file alongside each WAV file. Both share the same index and prefix (e.g., `rec5.wav` + `rec5.tlm`).
+
+### File format
+
+```
+[Header — 8 bytes]
+  magic[4]        : "FPVT"
+  version         : uint8  (1)
+  items           : uint8  (bitmask of recorded sources)
+  source_protocol : uint8  (1 = MSP, 2 = MAVLink)
+  sample_rate_hz  : uint8  (polling rate, e.g. 30)
+
+[Records — repeated, same layout for the entire session]
+  timestamp_ms    : uint32  (ms since boot — always present)
+  channels[8]     : uint16 × 8   (CH1–CH8 in µs)   if items & 1
+  roll            : int16         (deci-degrees)     if items & 2
+  pitch           : int16         (deci-degrees)     if items & 2
+  yaw             : int16         (degrees)          if items & 2
+  gps_fix         : uint8                            if items & 4
+  gps_sats        : uint8                            if items & 4
+  lat             : int32         (degE7)            if items & 4
+  lon             : int32         (degE7)            if items & 4
+  alt             : uint16        (metres)           if items & 4
+  speed           : uint16        (cm/s)             if items & 4
+  vbat_mv         : uint16        (millivolts)       if items & 8
+  mah             : uint16        (mAh drawn)        if items & 8
+  rssi            : uint16        (0–1023)           if items & 8
+  current_ca      : int16         (centi-amps)       if items & 8
+```
+
+All values are little-endian. Record size is fixed for a given session (determined by the `items` bitmask in the header). Default `items = 1`: record = 20 bytes (4 + 16).
+
+### Correlating audio and telemetry
+
+Both files start at the same moment (recording ARM). Use `timestamp_ms` to align a telemetry record with an audio sample:
+
+```python
+import struct, sys
+
+with open("rec5.tlm", "rb") as f:
+    magic, version, items, proto, rate = struct.unpack("4sBBBB", f.read(8))
+    assert magic == b"FPVT"
+
+    while True:
+        chunk = f.read(4)
+        if not chunk: break
+        ts_ms = struct.unpack("<I", chunk)[0]
+        # read remaining fields based on items bitmask
+        if items & 1: channels = struct.unpack("<8H", f.read(16))
+        if items & 2: roll, pitch, yaw = struct.unpack("<3h", f.read(6))
+        # ...
+        audio_sample = int(ts_ms / 1000 * 44100)  # corresponding WAV sample index
+        print(f"t={ts_ms}ms  ch1={channels[0]}µs  sample={audio_sample}")
+```
 
 ---
 
