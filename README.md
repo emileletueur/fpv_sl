@@ -19,7 +19,7 @@ The module plugs into the drone's power rail and flight controller GPIO. It reco
 | Microphone | INMP441 — I2S MEMS microphone |
 | Storage | SD card via SPI (FatFS) |
 | Status LED | WS2812 RGB (production) / onboard GP25 (debug) |
-| FC interface | 2× GPIO inputs from Flight Controller |
+| FC interface | 2× GPIO inputs (GPIO mode) or UART bidirectionnel MSP/MAVLink |
 
 ### Pin mapping
 
@@ -32,12 +32,16 @@ The module plugs into the drone's power rail and flight controller GPIO. It reco
 | SPI SD MOSI | 11 | |
 | SPI SD MISO | 12 | |
 | SPI SD CS | 13 | |
-| FC ENABLE pin | 1 | Arm/disarm input from FC |
-| FC RECORD pin | 2 | Record trigger from FC |
+| FC ENABLE pin | 1 | GPIO mode — arm/disarm input from FC |
+| FC RECORD pin | 2 | GPIO mode — record trigger from FC |
+| MSP UART TX | 4 | MSP mode (`use_uart_msp = true`) — connect to FC UART RX |
+| MSP UART RX | 5 | MSP mode — connect to FC UART TX |
 | WS2812 LED | 16 | Production RGB LED |
 | Onboard LED | 25 | Debug mode (see build options) |
 
-> Default pins can be overridden by defining `USE_CUSTOM_BOARD_PINS` and the corresponding `PIN_*` macros in `modules/fpv_sl_core_board_pin.h`.
+> GPIO pins 1/2 and UART pins 4/5 are defaults. Both can be remapped via `USE_CUSTOM_BOARD_PINS` and the corresponding `PIN_*` macros in `modules/fpv_sl_core_board_pin.h`.
+>
+> In `FPV_SL_PICO_PROBE_DEBUG` mode, FC GPIO pins are remapped to GP2/GP3 (GP1/GP2 are used by the SWD debug probe).
 
 ---
 
@@ -85,6 +89,33 @@ raw sample (32-bit)
 ```
 
 Both filters are 1st-order IIR. Each can be independently enabled or disabled. When both are active they form a **band-pass filter** (default passband: ~200 Hz – 8 kHz), which removes low-frequency motor rumble below the HP cutoff and high-frequency noise above the LP cutoff.
+
+### Telemetry pipeline (Core 0, MSP / MAVLink)
+
+When `use_uart_msp = true`, Core 0 interleaves telemetry polling with its audio write cycle at 30 Hz:
+
+```
+FC (Betaflight / iNAV)
+    │  UART TX/RX (MSP v2 / MAVLink)
+    ▼
+[Core 0 — 30 Hz poll]
+    │
+    ├── MSP_STATUS  (101) ──► ARM flag   → on_record / on_disarm
+    ├── MSP_RC      (105) ──► CH1–CH8   → on_enable / on_disable + triple-trigger
+    ├── MSP_ATTITUDE(108) ──► roll/pitch/yaw         ┐
+    ├── MSP_RAW_GPS (106) ──► fix/sats/lat/lon/alt   ├─ if telemetry_items > 0
+    └── MSP_ANALOG  (110) ──► vbat/mAh/rssi/current  ┘
+              │
+              ▼
+    [msp_get_telemetry_record()]
+    packs active fields into a binary record (4–47 B, layout from items bitmask)
+              │
+              ▼
+    [tlm_writer_write()]   ──►  SD card (.tlm file)
+    f_sync every 300 records (~10 s)
+```
+
+Each record is timestamped (`uint32_t ms since boot`) and only contains the fields enabled by `telemetry_items`. Record size is fixed for a given session and described in the file header.
 
 ---
 
@@ -146,6 +177,14 @@ When `use_uart_msp = true`, the module polls the FC over UART using the **MSP v2
 **LiPo detection (`RECORD_ON_BOOT` mode):** when the measured battery voltage is below `msp_lipo_min_mv` (default `3000` mV), the module assumes it is USB-powered only (e.g., pre-flight GPS lock phase). In this state, recording does not start, but the triple-trigger delete feature remains active for in-field cleanup before the flight.
 
 **Wiring:** two wires required — MSP is a request/response protocol, the Pico initiates every query. Connect FC UART TX → Pico UART RX, and Pico UART TX → FC UART RX. Enable `MSP` on the corresponding FC port in Betaflight/iNAV Ports tab.
+
+---
+
+## MAVLink interface (ArduPilot / iNAV)
+
+> **Not yet implemented.** Planned for a future release.
+
+The MAVLink interface will use the same UART (GP4/GP5) with auto-detection of the framing (`$X` for MSP v2, `0xFE`/`0xFD` for MAVLink v1/v2). The same four callbacks (`on_enable`, `on_disable`, `on_record`, `on_disarm`) and telemetry struct will be populated from MAVLink messages (`HEARTBEAT`, `RC_CHANNELS`, `ATTITUDE`, `GPS_RAW_INT`, `SYS_STATUS`), keeping the recording state machine and `.tlm` format unchanged.
 
 ---
 
@@ -286,26 +325,13 @@ All values are little-endian. Record size is fixed for a given session (determin
 
 ### Correlating audio and telemetry
 
-Both files start at the same moment (recording ARM). Use `timestamp_ms` to align a telemetry record with an audio sample:
+Both files start at the same moment (recording ARM). Use `timestamp_ms` (ms since boot, `uint32_t`, little-endian) to align a telemetry record with an audio sample:
 
-```python
-import struct, sys
-
-with open("rec5.tlm", "rb") as f:
-    magic, version, items, proto, rate = struct.unpack("4sBBBB", f.read(8))
-    assert magic == b"FPVT"
-
-    while True:
-        chunk = f.read(4)
-        if not chunk: break
-        ts_ms = struct.unpack("<I", chunk)[0]
-        # read remaining fields based on items bitmask
-        if items & 1: channels = struct.unpack("<8H", f.read(16))
-        if items & 2: roll, pitch, yaw = struct.unpack("<3h", f.read(6))
-        # ...
-        audio_sample = int(ts_ms / 1000 * 44100)  # corresponding WAV sample index
-        print(f"t={ts_ms}ms  ch1={channels[0]}µs  sample={audio_sample}")
 ```
+audio_sample_index = timestamp_ms / 1000 × sample_rate
+```
+
+The header `items` bitmask describes the exact layout of each record, so a parser can seek directly to any record by index (`offset = 8 + record_index × tlm_record_size(items)`).
 
 ---
 
@@ -334,6 +360,9 @@ cmake -S src -B src/build -G Ninja
 
 # Configure (debug — Pi Pico standard + probe)
 cmake -DFPV_SL_PICO_PROBE_DEBUG=ON -S src -B src/build -G Ninja
+
+# Configure (CDC simulator — test state machine via USB without FC)
+cmake -DFPV_SL_CDC_SIM=ON -S src -B src/build -G Ninja
 
 # Build
 cmake --build src/build
