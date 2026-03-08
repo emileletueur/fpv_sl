@@ -9,6 +9,10 @@
 #include "modules/sdio/file_helper.h"
 #include "modules/status_indicator/status_indicator.h"
 #include "pico/multicore.h"
+#ifdef FPV_SL_PICO_PROBE_DEBUG
+#include "hardware/gpio.h"
+#include "hardware/uart.h"
+#endif
 #include "status_indicator.h"
 #include "tusb.h"
 #include "usb/cdc_sim.h"
@@ -35,6 +39,13 @@ int main() {
     tusb_rhport_init_t dev_init = {.role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO};
 
     board_init_after_tusb();
+
+#ifdef FPV_SL_PICO_PROBE_DEBUG
+    // UART0 TX sur GP0 → bridge série du debug probe → port série VSCode.
+    // GP1 (RX) non initialisé : logging unidirectionnel.
+    uart_init(uart0, 115200);
+    gpio_set_function(0, GPIO_FUNC_UART);
+#endif
 
     // Init SD card (SPI + disk_initialize) — opération bloquante, avant tusb_init().
     // SD SPI configuré sur DMA_IRQ_1 pour laisser DMA_IRQ_0 libre pour l'I2S mic.

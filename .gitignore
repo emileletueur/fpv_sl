@@ -1,0 +1,36 @@
+# Build directories
+src/build/
+src/build_*/
+src/tests/build_host/
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Ninja
+build.ninja
+.ninja_deps
+.ninja_log
+
+# Binaries
+*.elf
+*.uf2
+*.bin
+*.hex
+*.map
+*.lst
+
+# Object / dependency files
+*.o
+*.d
+*.a
+
+# IDE / OS
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

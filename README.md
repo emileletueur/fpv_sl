@@ -352,8 +352,10 @@ cmake --version
 ninja --version
 arm-none-eabi-gcc --version
 
-# Clean
+# bash clean
 rm -rf src/build
+# powershell clean
+Remove-Item -Recurse -Force build
 
 # Configure (production)
 cmake -S src -B src/build -G Ninja

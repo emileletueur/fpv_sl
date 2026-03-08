@@ -2,6 +2,9 @@
 #include "tusb.h"
 #include "tusb_config.h"
 #include <stdarg.h>
+#ifdef FPV_SL_PICO_PROBE_DEBUG
+#include "hardware/uart.h"
+#endif
 
 #ifdef DEBUG_LOG_ENABLE
 #warning "USB DEBUG LOG ACTIF"
@@ -16,5 +19,8 @@ void debug_cdc_vprintf(const char *fmt, va_list args)
     if (len > 0) {
         tud_cdc_write(buffer, len);
         tud_cdc_write_flush();
+#ifdef FPV_SL_PICO_PROBE_DEBUG
+        uart_write_blocking(uart0, (const uint8_t *)buffer, len);
+#endif
     }
 }

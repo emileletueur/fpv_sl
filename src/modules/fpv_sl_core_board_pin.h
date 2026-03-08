@@ -1,4 +1,13 @@
 #pragma once
+
+// ── IRQ / DMA resource map ────────────────────────────────────────────────────
+// DMA_IRQ_0 → i2s_mic driver (dma_handler, irq_set_exclusive_handler)
+//              src/drivers/i2s_mic/i2s_mic.c
+// DMA_IRQ_1 → SD SPI driver (set_spi_dma_irq_channel(true, false))
+//              called unconditionally in tud_msc_request_mount() before tusb_init()
+//              src/usb/msc_disk.c + no-OS-FatFS-SD-SPI-RPi-Pico/FatFs_SPI/sd_driver/spi.c
+// ─────────────────────────────────────────────────────────────────────────────
+
 #ifdef USE_CUSTOM_BOARD_PINS
 
 // SPI-SD PIN

@@ -352,6 +352,7 @@ void fpv_sl_core0_loop(void) {
 
         multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
         uint32_t filtered_addr = multicore_fifo_pop_blocking();
+        __dmb();
         write_buffer((uint32_t *) filtered_addr);
         cdc_poll();
 
@@ -400,6 +401,7 @@ void fpv_sl_core1_loop(void) {
             }
         }
 
+        __dmb();
         multicore_fifo_push_blocking(addr);
     }
 }
