@@ -5,17 +5,6 @@
 #include <stdbool.h>
 #include "pico/critical_section.h"
 
-// ─────────────────────────────────────────────
-// Dimensionnement
-// ─────────────────────────────────────────────
-// INMP441 : 24-bit dans un mot 32-bit, mono
-// Sample rate : 16000 Hz (ou 44100, à ajuster)
-// DMA block : 256 samples = 1024 bytes
-// Durée d'un bloc à 16kHz : 256/16000 = 16ms
-// Nombre de blocs : 8 → 128ms de marge
-// ─────────────────────────────────────────────
-
-#define AUDIO_SAMPLE_RATE       44180
 #define AUDIO_BLOCK_SAMPLES     256
 #define AUDIO_BLOCK_SIZE_BYTES  (AUDIO_BLOCK_SAMPLES * sizeof(int32_t))
 #define AUDIO_BLOCK_COUNT       8   // Ring buffer depth

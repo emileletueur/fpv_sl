@@ -99,9 +99,15 @@ int main() {
     }
 
     if (conf->conf_is_loaded) {
-        // Initialise le micro I2S.
+        // Initialise le pipeline audio (doit précéder init_i2s_mic).
+        fpv_sl_audio_pipeline_init();
+
+        // Initialise le micro I2S — pipeline fournit les buffers DMA (SRAM).
         i2s_mic_t i2s_mic_conf = {
-            .sample_rate = conf->sample_rate, .is_mono = conf->mono_record, .buffer_size = conf->buffer_size};
+            .sample_rate = conf->sample_rate,
+            .is_mono     = conf->mono_record,
+            .buffer_size = conf->buffer_size,
+            .pipeline    = fpv_sl_get_audio_pipeline()};
         init_i2s_mic(&i2s_mic_conf);
 
         // Initialise l'interface FC (GPIO ou MSP selon config).

@@ -1,6 +1,7 @@
 
 
 #include "fpv_sl_core.h"
+#include "audio_buffer.h"
 #include "debug_log.h"
 #include "file_helper.h"
 #include "i2s_mic.h"
@@ -18,6 +19,18 @@
 #endif
 
 static const fpv_sl_conf_t *fpv_sl_conf = NULL;
+
+/* Pipeline audio : 8 blocs × 256 int32 = 8 KB SRAM.
+   Partagé avec i2s_mic (DMA côté IRQ) et core0/core1 (traitement côté boucles). */
+static audio_pipeline_t g_audio_pipeline;
+
+void fpv_sl_audio_pipeline_init(void) {
+    audio_pipeline_init(&g_audio_pipeline);
+}
+
+audio_pipeline_t *fpv_sl_get_audio_pipeline(void) {
+    return &g_audio_pipeline;
+}
 
 /* CDC Simulator : fpv_sl_cdc_task() est défini dans fpv_sl_loader.c quand
    FPV_SL_CDC_SIM est actif — appelé via cdc_poll() qui est un no-op sinon. */
@@ -334,7 +347,9 @@ void fpv_sl_core0_loop(void) {
     filter_R.last_x = 0;    filter_R.last_y = 0;
     filter_L_lp.last_y = 0; filter_R_lp.last_y = 0;
 
-    uint32_t blocks_since_sync = 0;
+    /* Démarre à SYNC_PERIOD_BLOCKS-1 : le premier bloc écrit déclenchera un sync
+       immédiat (garantit data_bytes > 0 dès ~6 ms d'audio, sans logique spéciale). */
+    uint32_t blocks_since_sync = SYNC_PERIOD_BLOCKS - 1;
     uint32_t start_ms          = to_ms_since_boot(get_absolute_time());
 
     while (g_recording) {
@@ -344,16 +359,19 @@ void fpv_sl_core0_loop(void) {
             if (rlen > 0)
                 tlm_writer_write(rec, rlen);
         }
-        if (!is_data_ready()) {
+        if (!audio_pipeline_process_available(&g_audio_pipeline)) {
             cdc_poll();
             tight_loop_contents();
             continue;
         }
 
-        multicore_fifo_push_blocking((uint32_t) get_active_buffer_ptr());
-        uint32_t filtered_addr = multicore_fifo_pop_blocking();
+        int32_t *buf = audio_pipeline_get_process_buffer(&g_audio_pipeline);
+        multicore_fifo_push_blocking((uint32_t)buf);
+        multicore_fifo_pop_blocking(); /* Core1 traite en place, retourne la même adresse */
+        audio_pipeline_process_done(&g_audio_pipeline); /* PROCESSING → WRITING */
         __dmb();
-        write_buffer((uint32_t *) filtered_addr);
+        write_buffer((uint32_t *)buf);
+        audio_pipeline_write_done(&g_audio_pipeline);   /* WRITING → FREE */
         cdc_poll();
 
         blocks_since_sync++;
@@ -369,9 +387,9 @@ void fpv_sl_core0_loop(void) {
         }
     }
 
-    uint32_t overruns = i2s_mic_get_overrun_count();
+    uint32_t overruns = audio_pipeline_get_overruns(&g_audio_pipeline);
     if (overruns > 0)
-        LOGW("I2S: %lu bloc(s) perdus (overrun DMA — Core 0 trop lent).", overruns);
+        LOGW("I2S: %lu bloc(s) perdus (overrun pipeline — Core 0 trop lent).", overruns);
     else
         LOGI("I2S: aucun overrun.");
 }
@@ -386,6 +404,15 @@ void fpv_sl_core1_loop(void) {
         hp_filter_t *hp_r = fpv_sl_conf->use_high_pass_filter ? &filter_R    : NULL;
         lp_filter_t *lp_l = fpv_sl_conf->use_low_pass_filter  ? &filter_L_lp : NULL;
         lp_filter_t *lp_r = fpv_sl_conf->use_low_pass_filter  ? &filter_R_lp : NULL;
+
+        static uint32_t s_diag_c1 = 0;
+        if (++s_diag_c1 % 172 == 0) {
+            /* ~1s à 22050 Hz/128 spl/bloc : log valeur brute DMA canal gauche
+               avant tout traitement — diagnose mic I2S (zéro = mic mort/câblage). */
+            LOGD("I2S raw: L=0x%08lX (>>8=%ld)  R=0x%08lX (>>8=%ld)",
+                 (unsigned long)(uint32_t)samples[0], (long)(samples[0] >> 8),
+                 (unsigned long)(uint32_t)samples[1], (long)(samples[1] >> 8));
+        }
 
         if (fpv_sl_conf->mono_record) {
             /* COMPACTION : canal GAUCHE (indices pairs) uniquement. */

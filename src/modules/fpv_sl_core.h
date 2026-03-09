@@ -1,6 +1,7 @@
 #pragma once
 // #define USE_CUSTOM_BOARD_PINS
 
+#include "audio_buffer.h"
 #include "fpv_sl_config.h"
 
 typedef enum {
@@ -33,6 +34,11 @@ float compute_lp_alpha(uint16_t cutoff_hz, uint16_t sample_rate);
    lp peut être NULL pour bypasser le filtre passe-bas.
    Le décalage d'alignement (>> 8) et le gain (0.8) sont toujours appliqués. */
 int32_t process_sample(hp_filter_t *hp, lp_filter_t *lp, int32_t sample);
+
+/* Pipeline audio partagé entre fpv_sl_core (traitement) et i2s_mic (DMA).
+   Appeler fpv_sl_audio_pipeline_init() avant init_i2s_mic(). */
+void              fpv_sl_audio_pipeline_init(void);
+audio_pipeline_t *fpv_sl_get_audio_pipeline(void);
 
 uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_conf);
 void fpv_sl_process_mode(void);

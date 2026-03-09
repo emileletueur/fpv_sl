@@ -859,6 +859,15 @@ int8_t write_buffer(uint32_t *buff) {
     for (uint32_t i = 0; i < samples; i++) {
         int16_buf[i] = (int16_t)(ibuf[i] >> 8);
     }
+    static uint32_t s_diag_wb = 0;
+    if (++s_diag_wb % 172 == 0) {
+        /* ~1s : log le premier int16 du bloc après conversion >>8 et le total écrit.
+           Si int16[0] == 0 alors que raw DMA est non-nul → shift incorrect.
+           Si int16[0] varie → pipeline OK. */
+        LOGD("write_buf: int32[0]=%ld → int16[0]=%d  total=%lu B",
+             (long)ibuf[0], int16_buf[0], (unsigned long)g_audio_bytes_written);
+    }
+
     UINT bytes_to_write = samples * sizeof(int16_t);
     UINT bytes_written;
     FRESULT fr = f_write(&file_p, int16_buf, bytes_to_write, &bytes_written);

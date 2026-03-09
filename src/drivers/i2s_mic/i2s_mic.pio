@@ -19,21 +19,28 @@ right_loop:
     static inline void audio_i2s_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint sck_pin_base, float div) {
         pio_sm_config c = audio_i2s_program_get_default_config(offset);
 
-        // DATA pin en entrée
+        // 1. Connexion physique des pins au contrôleur PIO
+        //    Sans cet appel, SCK/WS restent en mode SIO et ne sortent pas sur les pads.
+        pio_gpio_init(pio, data_pin);          // GP26 (SD)  — lecture PIO
+        pio_gpio_init(pio, sck_pin_base);      // GP27 (SCK) — side-set PIO
+        pio_gpio_init(pio, sck_pin_base + 1);  // GP28 (WS)  — side-set PIO
+
+        // 2. Directions (SD en entrée, SCK+WS en sortie)
+        pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false);
+        pio_sm_set_consecutive_pindirs(pio, sm, sck_pin_base, 2, true);
+
+        // 3. Mapping dans la SM
         sm_config_set_in_pins(&c, data_pin);
-        // SCK et WS en side-set (sorties)
         sm_config_set_sideset_pins(&c, sck_pin_base);
 
-        // On configure les directions des pins
-        pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false);     // In
-        pio_sm_set_consecutive_pindirs(pio, sm, sck_pin_base, 2, true);  // Out
-
-        // Autopush : dès que 32 bits sont lus, on les envoie vers le DMA
+        // 4. MSB first, autopush à 32 bits
         sm_config_set_in_shift(&c, false, true, 32);
 
-        // Vitesse de la machine d'état
-        sm_config_set_clkdiv(&c, div);
+        // 5. FIFO join RX : 8 entrées au lieu de 4 (~180 µs de marge à 44100 mots/s)
+        sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
+        // 6. Vitesse et lancement
+        sm_config_set_clkdiv(&c, div);
         pio_sm_init(pio, sm, offset, &c);
         pio_sm_set_enabled(pio, sm, true);
     }

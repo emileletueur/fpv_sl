@@ -15,4 +15,5 @@ target_link_libraries(i2s_mic
     fpv_sl_logging
     hardware_pio
     hardware_dma
+    audio_buffer
 )
