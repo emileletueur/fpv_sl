@@ -32,7 +32,7 @@ float compute_lp_alpha(uint16_t cutoff_hz, uint16_t sample_rate);
 /* Applique la chaîne de filtrage sur un échantillon brut INMP441 (32 bits).
    hp peut être NULL pour bypasser le filtre passe-haut.
    lp peut être NULL pour bypasser le filtre passe-bas.
-   Le décalage d'alignement (>> 8) et le gain (0.8) sont toujours appliqués. */
+   Le décalage d'alignement (>> 8) et le gain (g_gain) sont toujours appliqués. */
 int32_t process_sample(hp_filter_t *hp, lp_filter_t *lp, int32_t sample);
 
 /* Pipeline audio partagé entre fpv_sl_core (traitement) et i2s_mic (DMA).

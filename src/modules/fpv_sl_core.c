@@ -151,11 +151,11 @@ uint8_t get_mode_from_config(const fpv_sl_conf_t *fpv_sl_config) {
     filter_R.alpha    = filter_L.alpha;
     filter_L_lp.alpha = compute_lp_alpha(fpv_sl_conf->low_pass_cutoff_freq,  fpv_sl_conf->sample_rate);
     filter_R_lp.alpha = filter_L_lp.alpha;
-    g_gain = (float)fpv_sl_conf->mic_gain / 100.0f;
-    LOGI("HP alpha=%.4f (fc=%uHz), LP alpha=%.4f (fc=%uHz) at %uHz, gain=%.2f (%u%%).",
+    g_gain = fpv_sl_conf->mic_gain;
+    LOGI("HP alpha=%.4f (fc=%uHz), LP alpha=%.4f (fc=%uHz) at %uHz, gain=%.2f.",
          filter_L.alpha,    fpv_sl_conf->high_pass_cutoff_freq,
          filter_L_lp.alpha, fpv_sl_conf->low_pass_cutoff_freq,
-         fpv_sl_conf->sample_rate, g_gain, fpv_sl_conf->mic_gain);
+         fpv_sl_conf->sample_rate, g_gain);
 
     if (fpv_sl_conf->record_on_boot)
         execution_condition = ALWAY_RCD_TYPE;

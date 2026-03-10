@@ -64,7 +64,7 @@ INMP441 ──I2S──► DMA (ring buffer, canal unique relancé par IRQ) ─�
 
 - **Sample rates**: 22 080 Hz or 44 180 Hz (configurable)
 - **Channels**: mono or stereo (configurable)
-- **Bit depth**: 16-bit PCM (INMP441 outputs 24-bit I2S data in 32-bit DMA word; `process_sample` aligns to 24 bits, `write_buffer` converts to 16-bit for WAV)
+- **Bit depth**: 32-bit PCM (INMP441 outputs 24-bit I2S data in 32-bit DMA word; `process_sample` aligns to 24 bits ±2²³, `write_buffer` writes `int32_t` directly — full precision preserved)
 - **Buffer**: ring buffer of 8 blocks × 256 samples × 4 bytes = ~8 kB, providing ~46 ms of margin at 22 050 Hz
 
 ### DSP chain (Core 1, per sample)

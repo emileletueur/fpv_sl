@@ -77,7 +77,7 @@ typedef struct {
     bool conf_is_loaded;
     bool use_enable_pin;           // record only be triggerd by arm/desarm pin
     bool record_on_boot;               // record as soon as module is powered
-    uint8_t mic_gain;              // gain en pourcentage : 80 = 0.8×, 100 = 1.0×, 200 = 2.0×
+    float mic_gain;                // facteur multiplicatif : 1.0 = ×1, 1.5 = ×1.5, 5.3 = ×5.3
     bool use_high_pass_filter;      // enable the high-pass filter
     uint8_t high_pass_cutoff_freq;  // HP cutoff frequency in Hz (≤ 255)
     bool use_low_pass_filter;       // enable the low-pass filter

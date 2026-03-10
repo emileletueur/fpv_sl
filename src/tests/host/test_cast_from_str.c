@@ -18,6 +18,13 @@ void test_parse_bool_empty(void)         { TEST_ASSERT_FALSE(parse_bool("")); }
 void test_parse_bool_invalid(void)       { TEST_ASSERT_FALSE(parse_bool("xyz")); }
 void test_parse_bool_no(void)            { TEST_ASSERT_FALSE(parse_bool("no")); }
 
+/* ── parse_float ─────────────────────────────────────────────────────────── */
+
+void test_parse_float_integer(void)  { TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f,   parse_float("1")); }
+void test_parse_float_decimal(void)  { TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.5f,   parse_float("1.5")); }
+void test_parse_float_multi(void)    { TEST_ASSERT_FLOAT_WITHIN(0.001f, 5.3f,   parse_float("5.3")); }
+void test_parse_float_zero(void)     { TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f,   parse_float("0")); }
+
 /* ── parse_uint8 ─────────────────────────────────────────────────────────── */
 
 void test_parse_uint8_nominal(void)  { TEST_ASSERT_EQUAL_UINT8(42,  parse_uint8("42")); }
@@ -59,6 +66,11 @@ int main(void) {
     RUN_TEST(test_parse_bool_empty);
     RUN_TEST(test_parse_bool_invalid);
     RUN_TEST(test_parse_bool_no);
+
+    RUN_TEST(test_parse_float_integer);
+    RUN_TEST(test_parse_float_decimal);
+    RUN_TEST(test_parse_float_multi);
+    RUN_TEST(test_parse_float_zero);
 
     RUN_TEST(test_parse_uint8_nominal);
     RUN_TEST(test_parse_uint8_zero);

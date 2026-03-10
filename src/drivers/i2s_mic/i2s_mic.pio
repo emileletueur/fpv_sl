@@ -1,19 +1,27 @@
 .program audio_i2s
-.side_set 2 ; On contrôle 2 pins : SCK (bit 0) et WS (bit 1)
+.side_set 2 ; bit0=SCK, bit1=WS
 
 public main:
-    set x, 30          side 0b01 ; Prépare 31 itérations (pour 32 bits), WS bas (Left)
+.wrap_target
+    ; --- Canal LEFT (WS=0) ---
+    ; set sert de délai d'1 cycle SCK (offset Philips I2S) :
+    ; WS→0 s'est produit sur SCK↑ de l'instruction précédente ;
+    ; l'INMP441 positionne le MSB sur ce SCK↓ → donnée prête au prochain SCK↑.
+    set x, 30          side 0b00 ; SCK↓, WS=0 — offset I2S : INMP441 pose le MSB
 left_loop:
-    in pins, 1         side 0b00 ; Lit SD, SCK bas
-    jmp x-- left_loop  side 0b01 ; SCK haut, boucle 31 fois
+    in pins, 1         side 0b01 ; SCK↑, lit SD (flanc montant — donnée stable)
+    jmp x-- left_loop  side 0b00 ; SCK↓ (INMP441 décale le bit suivant), boucle 31 fois
 
-    in pins, 1         side 0b11 ; Lit le dernier bit, SCK haut, WS haut (Right)
-    set x, 30          side 0b11 ; Prépare 31 itérations, WS haut
+    in pins, 1         side 0b11 ; Dernier bit left, SCK↑, WS→1 (Right)
+
+    ; --- Canal RIGHT (WS=1) ---
+    set x, 30          side 0b10 ; SCK↓, WS=1 — offset I2S
 right_loop:
-    in pins, 1         side 0b10 ; Lit SD, SCK bas
-    jmp x-- right_loop side 0b11 ; SCK haut, boucle 31 fois
+    in pins, 1         side 0b11 ; SCK↑, lit SD
+    jmp x-- right_loop side 0b10 ; SCK↓, boucle 31 fois
 
-    in pins, 1         side 0b01 ; Lit le dernier bit, SCK haut, WS bas (retour au début)
+    in pins, 1         side 0b01 ; Dernier bit right, SCK↑, WS→0 (retour Left)
+.wrap
 
 % c-sdk {
     static inline void audio_i2s_program_init(PIO pio, uint sm, uint offset, uint data_pin, uint sck_pin_base, float div) {

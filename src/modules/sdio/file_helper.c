@@ -28,14 +28,14 @@ static uint32_t g_audio_bytes_written = 0;
 
 #define DEFAULT_RECORD_ON_BOOT                true
 #define DEFAULT_USE_ENABLE_PIN            false
-#define DEFAULT_MIC_GAIN                  100 /* 100 % = facteur 1.0× */
-#define DEFAULT_USE_HIGH_PASS_FILTER      false
-#define DEFAULT_HIGH_PASS_CUTOFF_FREQ     200
-#define DEFAULT_USE_LOW_PASS_FILTER       false
-#define DEFAULT_LOW_PASS_CUTOFF_FREQ      8000
+#define DEFAULT_MIC_GAIN                  5.0f /* facteur 5.0× */
+#define DEFAULT_USE_HIGH_PASS_FILTER      true
+#define DEFAULT_HIGH_PASS_CUTOFF_FREQ     250
+#define DEFAULT_USE_LOW_PASS_FILTER       true
+#define DEFAULT_LOW_PASS_CUTOFF_FREQ      7000
 #define DEFAULT_SAMPLE_RATE               22050
 #define DEFAULT_BUFFER_SIZE               256
-#define DEFAULT_MONO_RECORD               true
+#define DEFAULT_MONO_RECORD               false
 #define DEFAULT_FILE_INDEX      0
 #define DEFAULT_RECORD_FOLDER                ""
 #define DEFAULT_RECORD_PREFIX             "rec"
@@ -89,7 +89,7 @@ static int8_t write_default_conf(void) {
     int len = snprintf(buf, sizeof(buf),
         RECORD_ON_BOOT                " %s\n"
         USE_ENABLE_PIN            " %s\n"
-        MIC_GAIN                  " %u\n"
+        MIC_GAIN                  " %.2f\n"
         USE_HIGH_PASS_FILTER      " %s\n"
         HIGH_PASS_CUTOFF_FREQ     " %u\n"
         USE_LOW_PASS_FILTER       " %s\n"
@@ -397,7 +397,7 @@ int8_t read_conf_file(void) {
             fpv_sl_config.record_on_boot = parse_bool(conf_item.value);
             break;
         case KEY_MIC_GAIN:
-            fpv_sl_config.mic_gain = parse_uint8(conf_item.value);
+            fpv_sl_config.mic_gain = parse_float(conf_item.value);
             break;
         case KEY_USE_HIGH_PASS_FILTER:
             fpv_sl_config.use_high_pass_filter = parse_bool(conf_item.value);
@@ -499,7 +499,7 @@ int8_t create_wav_file(void) {
        le recording reste fonctionnel, avec une latence d'écriture moins prévisible. */
     uint8_t  channels        = fpv_sl_config.mono_record ? 1 : 2;
     uint32_t pre_alloc_bytes = (uint32_t)fpv_sl_config.sample_rate
-                               * channels * sizeof(int16_t)
+                               * channels * sizeof(int32_t)
                                * fpv_sl_config.max_record_duration
                                + sizeof(wav_header_t);
     LOGI("Requesting %lu B pre-allocation (%us at %uHz %s).",
@@ -528,12 +528,12 @@ int8_t create_wav_file(void) {
                                 .fmt_header      = {'f', 'm', 't', ' '},
                                 .data_header     = {'d', 'a', 't', 'a'},
                                 .fmt_chunk_size  = 16,
-                                .audio_format    = 1,
+                                .audio_format    = 3,
                                 .num_channels    = channels,
                                 .sample_rate     = fpv_sl_config.sample_rate,
-                                .bits_per_sample = 16,
-                                .byte_rate       = fpv_sl_config.sample_rate * channels * sizeof(int16_t),
-                                .block_align     = channels * sizeof(int16_t),
+                                .bits_per_sample = 32,
+                                .byte_rate       = fpv_sl_config.sample_rate * channels * sizeof(int32_t),
+                                .block_align     = channels * sizeof(int32_t),
                                 .wav_size        = 36,
                                 .data_bytes      = 0};
     UINT bw;
@@ -575,12 +575,12 @@ int8_t finalize_wav_file(uint32_t rcd_duration) {
                            .fmt_header      = {'f', 'm', 't', ' '},
                            .data_header     = {'d', 'a', 't', 'a'},
                            .fmt_chunk_size  = 16,
-                           .audio_format    = 1,
+                           .audio_format    = 3,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -678,12 +678,12 @@ int8_t recover_unfinalized_recording(void) {
                            .fmt_header      = {'f', 'm', 't', ' '},
                            .data_header     = {'d', 'a', 't', 'a'},
                            .fmt_chunk_size  = 16,
-                           .audio_format    = 1,
+                           .audio_format    = 3,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
                            .wav_size        = 36 + data_bytes_real,
                            .data_bytes      = data_bytes_real};
 
@@ -733,12 +733,12 @@ int8_t sync_wav_file(void) {
                            .fmt_header      = {'f', 'm', 't', ' '},
                            .data_header     = {'d', 'a', 't', 'a'},
                            .fmt_chunk_size  = 16,
-                           .audio_format    = 1,
+                           .audio_format    = 3,
                            .num_channels    = fpv_sl_config.mono_record ? 1 : 2,
                            .sample_rate     = fpv_sl_config.sample_rate,
-                           .bits_per_sample = 16,
-                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
-                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int16_t),
+                           .bits_per_sample = 32,
+                           .byte_rate = fpv_sl_config.sample_rate * (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
+                           .block_align     = (fpv_sl_config.mono_record ? 1 : 2) * sizeof(int32_t),
                            .wav_size        = 36 + g_audio_bytes_written,
                            .data_bytes      = g_audio_bytes_written};
 
@@ -852,25 +852,27 @@ int8_t flush_audio_files(void) {
 int8_t write_buffer(uint32_t *buff) {
     uint32_t samples = fpv_sl_config.mono_record ? fpv_sl_config.buffer_size / 2
                                                  : fpv_sl_config.buffer_size;
-    /* Conversion int32 (24-bit, ±2^23) → int16 (±2^15) : >> 8.
-     * process_sample retourne la valeur audio INMP441 sur 24 bits après >> 8 sur le mot DMA. */
-    static int16_t int16_buf[DEFAULT_BUFFER_SIZE];
+    /* Conversion en IEEE 754 float normalisé [-1.0, 1.0] pour WAV format 3.
+     * process_sample retourne ±2^23 × gain (INMP441 24-bit après >>8).
+     * On divise par 2^23 pour normaliser à ±1.0 avant application du gain.
+     * Clamp pour éviter que MIC_GAIN > 100 % ne produise un float > ±1.0. */
     int32_t *ibuf = (int32_t *)buff;
+    static float float_buf[DEFAULT_BUFFER_SIZE];
+    const float norm = 1.0f / 8388608.0f; /* 1 / 2^23 */
     for (uint32_t i = 0; i < samples; i++) {
-        int16_buf[i] = (int16_t)(ibuf[i] >> 8);
-    }
-    static uint32_t s_diag_wb = 0;
-    if (++s_diag_wb % 172 == 0) {
-        /* ~1s : log le premier int16 du bloc après conversion >>8 et le total écrit.
-           Si int16[0] == 0 alors que raw DMA est non-nul → shift incorrect.
-           Si int16[0] varie → pipeline OK. */
-        LOGD("write_buf: int32[0]=%ld → int16[0]=%d  total=%lu B",
-             (long)ibuf[0], int16_buf[0], (unsigned long)g_audio_bytes_written);
+        float v = (float)ibuf[i] * norm;
+        float_buf[i] = v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v);
     }
 
-    UINT bytes_to_write = samples * sizeof(int16_t);
+    static uint32_t s_diag_wb = 0;
+    if (++s_diag_wb % 172 == 0) {
+        LOGD("write_buf: raw=%ld → float=%.6f  total=%lu B",
+             (long)ibuf[0], float_buf[0], (unsigned long)g_audio_bytes_written);
+    }
+
+    UINT bytes_to_write = samples * sizeof(float);
     UINT bytes_written;
-    FRESULT fr = f_write(&file_p, int16_buf, bytes_to_write, &bytes_written);
+    FRESULT fr = f_write(&file_p, float_buf, bytes_to_write, &bytes_written);
     if (fr != FR_OK || bytes_written != bytes_to_write) {
         LOGE("write_buffer: f_write failed: %d (%s).", fr, get_fresult_str(fr));
         return -1;

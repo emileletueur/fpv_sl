@@ -7,6 +7,10 @@ bool parse_bool(const char *str) {
     return (strcasecmp(str, "true") == 0 || strcasecmp(str, "1") == 0 || strcasecmp(str, "yes") == 0);
 }
 
+float parse_float(const char *str) {
+    return strtof(str, NULL);
+}
+
 uint8_t parse_uint8(const char *str) {
     unsigned long val = strtoul(str, NULL, 0);
     return (val > UINT8_MAX) ? 0 : (uint8_t) val;

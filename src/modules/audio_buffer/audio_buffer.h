@@ -7,7 +7,7 @@
 
 #define AUDIO_BLOCK_SAMPLES     256
 #define AUDIO_BLOCK_SIZE_BYTES  (AUDIO_BLOCK_SAMPLES * sizeof(int32_t))
-#define AUDIO_BLOCK_COUNT       8   // Ring buffer depth
+#define AUDIO_BLOCK_COUNT       32  // Ring buffer depth (~92 ms @ 44100 Hz stereo)
 
 typedef enum {
     BLOCK_FREE,         // DMA peut écrire
