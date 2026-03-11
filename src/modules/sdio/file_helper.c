@@ -28,11 +28,11 @@ static uint32_t g_audio_bytes_written = 0;
 
 #define DEFAULT_RECORD_ON_BOOT                true
 #define DEFAULT_USE_ENABLE_PIN            false
-#define DEFAULT_MIC_GAIN                  5.0f /* facteur 5.0× */
+#define DEFAULT_MIC_GAIN                  1.0f /* facteur 5.0× */
 #define DEFAULT_USE_HIGH_PASS_FILTER      true
-#define DEFAULT_HIGH_PASS_CUTOFF_FREQ     250
+#define DEFAULT_HIGH_PASS_CUTOFF_FREQ     150
 #define DEFAULT_USE_LOW_PASS_FILTER       true
-#define DEFAULT_LOW_PASS_CUTOFF_FREQ      7000
+#define DEFAULT_LOW_PASS_CUTOFF_FREQ      10000
 #define DEFAULT_SAMPLE_RATE               22050
 #define DEFAULT_BUFFER_SIZE               256
 #define DEFAULT_MONO_RECORD               false

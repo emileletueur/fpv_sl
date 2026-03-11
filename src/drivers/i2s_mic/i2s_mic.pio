@@ -1,26 +1,27 @@
 .program audio_i2s
 .side_set 2 ; bit0=SCK, bit1=WS
 
+; Philips I2S : WS doit transiter sur le flanc DESCENDANT de SCK.
+; L'INMP441 latche WS sur le flanc montant suivant et positionne le MSB
+; sur le flanc descendant d'après → lecture correcte au flanc montant suivant.
+;
+; public main exécuté une seule fois (init x et WS=0) ; la boucle .wrap
+; démarre à .wrap_target (left_loop) avec x déjà initialisé.
+
 public main:
+    set x, 30          side 0b00  ; Init : SCK↓, WS=0, x=30
 .wrap_target
-    ; --- Canal LEFT (WS=0) ---
-    ; set sert de délai d'1 cycle SCK (offset Philips I2S) :
-    ; WS→0 s'est produit sur SCK↑ de l'instruction précédente ;
-    ; l'INMP441 positionne le MSB sur ce SCK↓ → donnée prête au prochain SCK↑.
-    set x, 30          side 0b00 ; SCK↓, WS=0 — offset I2S : INMP441 pose le MSB
 left_loop:
-    in pins, 1         side 0b01 ; SCK↑, lit SD (flanc montant — donnée stable)
-    jmp x-- left_loop  side 0b00 ; SCK↓ (INMP441 décale le bit suivant), boucle 31 fois
+    in pins, 1         side 0b01  ; SCK↑, lit SD (flanc montant — donnée stable)
+    jmp x-- left_loop  side 0b00  ; SCK↓, boucle 31 fois
+    in pins, 1         side 0b01  ; SCK↑, dernier bit left (WS reste 0)
+    set x, 30          side 0b10  ; SCK↓, WS→1 — transition RIGHT sur flanc descendant ✓
 
-    in pins, 1         side 0b11 ; Dernier bit left, SCK↑, WS→1 (Right)
-
-    ; --- Canal RIGHT (WS=1) ---
-    set x, 30          side 0b10 ; SCK↓, WS=1 — offset I2S
 right_loop:
-    in pins, 1         side 0b11 ; SCK↑, lit SD
-    jmp x-- right_loop side 0b10 ; SCK↓, boucle 31 fois
-
-    in pins, 1         side 0b01 ; Dernier bit right, SCK↑, WS→0 (retour Left)
+    in pins, 1         side 0b11  ; SCK↑, lit SD
+    jmp x-- right_loop side 0b10  ; SCK↓, boucle 31 fois
+    in pins, 1         side 0b11  ; SCK↑, dernier bit right (WS reste 1)
+    set x, 30          side 0b00  ; SCK↓, WS→0 — transition LEFT sur flanc descendant ✓
 .wrap
 
 % c-sdk {
